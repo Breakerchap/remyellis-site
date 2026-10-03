@@ -296,7 +296,7 @@
 .note-meta-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: minmax(12rem, 2fr) minmax(9rem, 0.8fr) minmax(11rem, 1fr) minmax(11rem, 0.85fr);
+  grid-template-columns: minmax(15rem, 2fr) minmax(9rem, 0.8fr) minmax(11rem, 1fr);
 }
 
 .note-form input,
@@ -464,10 +464,11 @@
 }
 
 
-.format-help {
+
+
+.editor-language-note {
   color: var(--muted-soft);
-  display: block;
-  font-size: 0.66rem;
-  line-height: 1.45;
-  margin-top: 0.42rem;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  margin: 1.25rem 0 -0.75rem;
 }
