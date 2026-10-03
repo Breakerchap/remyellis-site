@@ -1,0 +1,138 @@
+<!DOCTYPE HTML>
+<html lang="en-AU">
+
+<head>
+  <title>Notes Admin — Remy Ellis</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#0b7f98" />
+
+  <link rel="icon" type="image/png" href="assets/css/images/Signature.png" />
+  <link rel="stylesheet" href="assets/css/main.css" />
+  <link rel="stylesheet" href="assets/css/remy.css" />
+  <link rel="stylesheet" href="assets/css/notes.css" />
+  <link rel="stylesheet" href="assets/css/notes-admin.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+
+  <script defer src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script defer src="assets/js/notes-admin.js"></script>
+</head>
+
+<body class="notes-page admin-page">
+  <header class="notes-topbar">
+    <a class="notes-brand" href="/" aria-label="Remy Ellis home">
+      <img src="assets/css/images/Signature.png" alt="" width="38" height="38" />
+      <span>Notes admin</span>
+    </a>
+    <nav aria-label="Admin navigation">
+      <a href="/notes.html">Public notes</a>
+      <a href="/">Home</a>
+      <button id="logout-button" type="button" class="admin-topbar-button">Log out</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="admin-login" class="admin-login" hidden>
+      <form id="login-form" class="admin-login-card">
+        <p class="eyebrow">Private</p>
+        <h1>Notes admin</h1>
+        <p>Sign in to write, save drafts, and publish notes.</p>
+        <label for="admin-password">Password</label>
+        <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+        <p id="login-error" class="notes-message notes-error" hidden></p>
+        <button class="button primary" type="submit">Sign in</button>
+      </form>
+    </section>
+
+    <section id="admin-app" class="admin-layout" hidden>
+      <aside class="admin-sidebar">
+        <div class="admin-sidebar-head">
+          <div>
+            <p class="eyebrow">Notes</p>
+            <h1>Editor</h1>
+          </div>
+          <button id="new-note" type="button" class="button primary">New note</button>
+        </div>
+        <div id="admin-note-list" class="admin-note-list" aria-label="Saved notes"></div>
+      </aside>
+
+      <section class="admin-editor-shell">
+        <p id="admin-error" class="notes-message notes-error" hidden></p>
+
+        <div id="editor-empty" class="editor-empty">
+          <h2>Select a note or create a new one.</h2>
+          <p>Drafts are only written to the server when you press <strong>Save draft</strong>.</p>
+        </div>
+
+        <div id="note-editor" hidden>
+          <div class="editor-toolbar">
+            <div class="editor-status-line">
+              <span id="note-status" class="note-status is-draft">Draft</span>
+              <span id="save-state" class="save-state">Not saved</span>
+            </div>
+            <div class="editor-actions">
+              <button id="delete-note" type="button" class="admin-danger" hidden>Delete</button>
+              <button id="unpublish-note" type="button" class="button" hidden>Unpublish</button>
+              <button id="publish-note" type="button" class="button">Publish</button>
+              <button id="save-note" type="submit" form="note-form" class="button primary">Save draft</button>
+            </div>
+          </div>
+
+          <form id="note-form" class="note-form">
+            <div class="note-meta-grid">
+              <label class="title-field">
+                <span>Title</span>
+                <input id="note-title" type="text" maxlength="180" required placeholder="Untitled note" />
+              </label>
+              <label>
+                <span>Date</span>
+                <input id="note-date" type="date" required />
+              </label>
+              <label>
+                <span>Slug</span>
+                <input id="note-slug" type="text" maxlength="100" spellcheck="false" placeholder="untitled-note" />
+              </label>
+              <label>
+                <span>Format</span>
+                <select id="note-format">
+                  <option value="markdown">Markdown + LaTeX</option>
+                  <option value="html">HTML + LaTeX</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="editor-tabs" role="tablist" aria-label="Editor view">
+              <button id="write-button" type="button" class="editor-tab is-active">Write</button>
+              <button id="preview-button" type="button" class="editor-tab">Preview</button>
+            </div>
+
+            <div id="editor-pane" class="editor-pane">
+              <label for="note-body" class="sr-only">Note body</label>
+              <textarea id="note-body" class="note-body-input" spellcheck="true" placeholder="# Start writing…"></textarea>
+
+              <details class="custom-css-panel">
+                <summary>Custom CSS / fonts</summary>
+                <p>
+                  Optional CSS applied when this note is displayed. You can use <code>@font-face</code> here and
+                  reference font files you have placed under <code>/assets/fonts/</code>.
+                </p>
+                <label for="note-css" class="sr-only">Custom CSS</label>
+                <textarea id="note-css" class="note-css-input" spellcheck="false"
+                  placeholder="@font-face { font-family: 'My Font'; src: url('/assets/fonts/my-font.woff2') format('woff2'); }"></textarea>
+              </details>
+            </div>
+
+            <div id="preview-pane" class="preview-pane" hidden>
+              <article id="note-preview" class="note-body admin-preview"></article>
+            </div>
+          </form>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+
+</html>

@@ -1,0 +1,521 @@
+'use strict';
+
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const { URL } = require('node:url');
+
+const HOST = process.env.NOTES_HOST || '127.0.0.1';
+const PORT = Number(process.env.NOTES_PORT || 8790);
+const DATA_PATH = process.env.NOTES_DATA_PATH || path.join(__dirname, 'data', 'notes.json');
+const ADMIN_PASSWORD = process.env.NOTES_ADMIN_PASSWORD;
+const SECURE_COOKIE = process.env.NOTES_SECURE_COOKIE !== '0';
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 8;
+const COOKIE_NAME = 'remy_notes_session';
+
+if (!ADMIN_PASSWORD) {
+  console.error('NOTES_ADMIN_PASSWORD must be set.');
+  process.exit(1);
+}
+
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  console.error('NOTES_PORT must be a valid TCP port.');
+  process.exit(1);
+}
+
+const sessions = new Map();
+const loginAttempts = new Map();
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function baseHeaders(extra = {}) {
+  return {
+    'Content-Type': 'application/json; charset=utf-8',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'same-origin',
+    ...extra,
+  };
+}
+
+function sendJson(res, statusCode, payload, extraHeaders = {}) {
+  const body = JSON.stringify(payload);
+  res.writeHead(statusCode, baseHeaders({
+    'Content-Length': Buffer.byteLength(body),
+    ...extraHeaders,
+  }));
+  res.end(body);
+}
+
+function sendNoContent(res, extraHeaders = {}) {
+  res.writeHead(204, {
+    'X-Content-Type-Options': 'nosniff',
+    ...extraHeaders,
+  });
+  res.end();
+}
+
+async function readJsonBody(req) {
+  return await new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        reject(Object.assign(new Error('Request body too large.'), { statusCode: 413 }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+
+    req.on('end', () => {
+      try {
+        const text = Buffer.concat(chunks).toString('utf8');
+        resolve(text ? JSON.parse(text) : {});
+      } catch {
+        reject(Object.assign(new Error('Invalid JSON.'), { statusCode: 400 }));
+      }
+    });
+
+    req.on('error', reject);
+  });
+}
+
+function ensureStore() {
+  const dir = path.dirname(DATA_PATH);
+  fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(DATA_PATH)) {
+    fs.writeFileSync(DATA_PATH, JSON.stringify({ version: 1, notes: [] }, null, 2) + '\n', { mode: 0o600 });
+  }
+}
+
+function readStore() {
+  ensureStore();
+  const parsed = JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
+  if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.notes)) {
+    throw new Error('Notes data file has an unsupported format.');
+  }
+  return parsed;
+}
+
+function writeStore(store) {
+  ensureStore();
+  const dir = path.dirname(DATA_PATH);
+  const tempPath = path.join(dir, `.notes-${process.pid}-${crypto.randomBytes(6).toString('hex')}.tmp`);
+  fs.writeFileSync(tempPath, JSON.stringify(store, null, 2) + '\n', { mode: 0o600 });
+  fs.renameSync(tempPath, DATA_PATH);
+}
+
+function parseCookies(req) {
+  const result = {};
+  const header = req.headers.cookie || '';
+  for (const part of header.split(';')) {
+    const index = part.indexOf('=');
+    if (index === -1) continue;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (key) result[key] = decodeURIComponent(value);
+  }
+  return result;
+}
+
+function sessionCookie(token, maxAgeSeconds = Math.floor(SESSION_TTL_MS / 1000)) {
+  const secure = SECURE_COOKIE ? '; Secure' : '';
+  return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict${secure}; Max-Age=${maxAgeSeconds}`;
+}
+
+function expireSessionCookie() {
+  const secure = SECURE_COOKIE ? '; Secure' : '';
+  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict${secure}; Max-Age=0`;
+}
+
+function getSession(req) {
+  const token = parseCookies(req)[COOKIE_NAME];
+  if (!token) return null;
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (session.expiresAt <= Date.now()) {
+    sessions.delete(token);
+    return null;
+  }
+  session.expiresAt = Date.now() + SESSION_TTL_MS;
+  return { token, ...session };
+}
+
+function requireAuth(req, res) {
+  const session = getSession(req);
+  if (!session) {
+    sendJson(res, 401, { error: 'Authentication required.' }, { 'Cache-Control': 'no-store' });
+    return null;
+  }
+  return session;
+}
+
+function sameOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
+
+function constantTimePasswordMatch(candidate) {
+  const a = crypto.createHash('sha256').update(String(candidate || '')).digest();
+  const b = crypto.createHash('sha256').update(ADMIN_PASSWORD).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+function clientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
+  return req.socket.remoteAddress || 'unknown';
+}
+
+function loginRateState(ip) {
+  const existing = loginAttempts.get(ip);
+  if (!existing || existing.resetAt <= Date.now()) {
+    const fresh = { count: 0, resetAt: Date.now() + LOGIN_WINDOW_MS };
+    loginAttempts.set(ip, fresh);
+    return fresh;
+  }
+  return existing;
+}
+
+function slugify(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100) || 'untitled-note';
+}
+
+function plainTextFromBody(note) {
+  let text = String(note.body || '');
+  if (note.format === 'html') {
+    text = text
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ');
+  } else {
+    text = text
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/^\s*>\s?/gm, '')
+      .replace(/[*_~`]/g, ' ')
+      .replace(/<[^>]+>/g, ' ');
+  }
+
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function makeExcerpt(note) {
+  const text = plainTextFromBody(note);
+  if (text.length <= 360) return text;
+  const sliced = text.slice(0, 360);
+  const lastSpace = sliced.lastIndexOf(' ');
+  return `${sliced.slice(0, lastSpace > 260 ? lastSpace : 360).trim()}…`;
+}
+
+function publicSummary(note) {
+  return {
+    slug: note.slug,
+    title: note.title,
+    date: note.date,
+    format: note.format,
+    excerpt: makeExcerpt(note),
+    publishedAt: note.publishedAt,
+    updatedAt: note.updatedAt,
+  };
+}
+
+function publicNote(note) {
+  return {
+    ...publicSummary(note),
+    body: note.body,
+    customCss: note.customCss || '',
+  };
+}
+
+function normaliseNoteInput(input, existing, store) {
+  const title = String(input.title ?? existing?.title ?? '').trim();
+  if (!title || title.length > 180) {
+    throw Object.assign(new Error('Title must be between 1 and 180 characters.'), { statusCode: 400 });
+  }
+
+  const format = String(input.format ?? existing?.format ?? 'markdown').toLowerCase();
+  if (!['markdown', 'html'].includes(format)) {
+    throw Object.assign(new Error('Format must be markdown or html.'), { statusCode: 400 });
+  }
+
+  const date = String(input.date ?? existing?.date ?? new Date().toISOString().slice(0, 10));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+    throw Object.assign(new Error('Date must be YYYY-MM-DD.'), { statusCode: 400 });
+  }
+
+  const requestedSlug = String(input.slug ?? existing?.slug ?? '').trim();
+  const slug = slugify(requestedSlug || title);
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 100) {
+    throw Object.assign(new Error('Slug contains unsupported characters.'), { statusCode: 400 });
+  }
+
+  const body = String(input.body ?? existing?.body ?? '');
+  if (Buffer.byteLength(body, 'utf8') > 1024 * 1024) {
+    throw Object.assign(new Error('Note body is too large.'), { statusCode: 413 });
+  }
+
+  const customCss = String(input.customCss ?? existing?.customCss ?? '');
+  if (Buffer.byteLength(customCss, 'utf8') > 64 * 1024) {
+    throw Object.assign(new Error('Custom CSS is too large.'), { statusCode: 413 });
+  }
+
+  const collision = store.notes.find(note => note.slug === slug && note.id !== existing?.id);
+  if (collision) {
+    throw Object.assign(new Error('Another note already uses that slug.'), { statusCode: 409 });
+  }
+
+  return { title, slug, date, format, body, customCss };
+}
+
+function sortPublicNotes(notes) {
+  return [...notes].sort((a, b) => {
+    const byDate = b.date.localeCompare(a.date);
+    if (byDate !== 0) return byDate;
+    return String(b.publishedAt || '').localeCompare(String(a.publishedAt || ''));
+  });
+}
+
+function sortAdminNotes(notes) {
+  return [...notes].sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+}
+
+function routeParam(pathname, prefix) {
+  if (!pathname.startsWith(prefix)) return null;
+  const value = pathname.slice(prefix.length);
+  if (!value || value.includes('/')) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
+async function handle(req, res) {
+  const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const pathname = requestUrl.pathname;
+
+  if (req.method === 'GET' && pathname === '/api/notes') {
+    const store = readStore();
+    const published = sortPublicNotes(store.notes.filter(note => note.status === 'published'));
+    return sendJson(res, 200, { notes: published.map(publicSummary) }, { 'Cache-Control': 'no-cache' });
+  }
+
+  if (req.method === 'GET') {
+    const slug = routeParam(pathname, '/api/notes/');
+    if (slug) {
+      const store = readStore();
+      const note = store.notes.find(item => item.status === 'published' && item.slug === slug);
+      if (!note) return sendJson(res, 404, { error: 'Note not found.' });
+      return sendJson(res, 200, { note: publicNote(note) }, { 'Cache-Control': 'no-cache' });
+    }
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/login') {
+    if (!sameOrigin(req)) return sendJson(res, 403, { error: 'Origin rejected.' }, { 'Cache-Control': 'no-store' });
+
+    const ip = clientIp(req);
+    const rate = loginRateState(ip);
+    if (rate.count >= MAX_LOGIN_ATTEMPTS) {
+      const retryAfter = Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000));
+      return sendJson(res, 429, { error: 'Too many login attempts. Try again later.' }, {
+        'Cache-Control': 'no-store',
+        'Retry-After': String(retryAfter),
+      });
+    }
+
+    const body = await readJsonBody(req);
+    if (!constantTimePasswordMatch(body.password)) {
+      rate.count += 1;
+      return sendJson(res, 401, { error: 'Incorrect password.' }, { 'Cache-Control': 'no-store' });
+    }
+
+    loginAttempts.delete(ip);
+    const token = crypto.randomBytes(32).toString('base64url');
+    sessions.set(token, { expiresAt: Date.now() + SESSION_TTL_MS });
+    return sendJson(res, 200, { authenticated: true }, {
+      'Cache-Control': 'no-store',
+      'Set-Cookie': sessionCookie(token),
+    });
+  }
+
+  if (pathname.startsWith('/api/admin/') && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method) && !sameOrigin(req)) {
+    return sendJson(res, 403, { error: 'Origin rejected.' }, { 'Cache-Control': 'no-store' });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/logout') {
+    const session = getSession(req);
+    if (session) sessions.delete(session.token);
+    return sendNoContent(res, { 'Set-Cookie': expireSessionCookie() });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/admin/session') {
+    if (!requireAuth(req, res)) return;
+    return sendJson(res, 200, { authenticated: true }, { 'Cache-Control': 'no-store' });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/admin/notes') {
+    if (!requireAuth(req, res)) return;
+    const store = readStore();
+    const notes = sortAdminNotes(store.notes).map(note => ({
+      id: note.id,
+      title: note.title,
+      slug: note.slug,
+      date: note.date,
+      format: note.format,
+      status: note.status,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      publishedAt: note.publishedAt || null,
+      excerpt: makeExcerpt(note),
+    }));
+    return sendJson(res, 200, { notes }, { 'Cache-Control': 'no-store' });
+  }
+
+  if (req.method === 'GET') {
+    const id = routeParam(pathname, '/api/admin/notes/');
+    if (id) {
+      if (!requireAuth(req, res)) return;
+      const store = readStore();
+      const note = store.notes.find(item => item.id === id);
+      if (!note) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
+      return sendJson(res, 200, { note }, { 'Cache-Control': 'no-store' });
+    }
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/notes') {
+    if (!requireAuth(req, res)) return;
+    const store = readStore();
+    const input = await readJsonBody(req);
+    const values = normaliseNoteInput(input, null, store);
+    const timestamp = nowIso();
+    const note = {
+      id: crypto.randomUUID(),
+      ...values,
+      status: 'draft',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      publishedAt: null,
+    };
+    store.notes.push(note);
+    writeStore(store);
+    return sendJson(res, 201, { note }, { 'Cache-Control': 'no-store' });
+  }
+
+  if (req.method === 'PUT') {
+    const id = routeParam(pathname, '/api/admin/notes/');
+    if (id) {
+      if (!requireAuth(req, res)) return;
+      const store = readStore();
+      const index = store.notes.findIndex(item => item.id === id);
+      if (index === -1) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
+      const existing = store.notes[index];
+      const input = await readJsonBody(req);
+      const values = normaliseNoteInput(input, existing, store);
+      const note = { ...existing, ...values, updatedAt: nowIso() };
+      store.notes[index] = note;
+      writeStore(store);
+      return sendJson(res, 200, { note }, { 'Cache-Control': 'no-store' });
+    }
+  }
+
+  const publishMatch = pathname.match(/^\/api\/admin\/notes\/([^/]+)\/publish$/);
+  if (req.method === 'POST' && publishMatch) {
+    if (!requireAuth(req, res)) return;
+    const id = decodeURIComponent(publishMatch[1]);
+    const store = readStore();
+    const note = store.notes.find(item => item.id === id);
+    if (!note) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
+    if (!note.body.trim()) return sendJson(res, 400, { error: 'A note must have content before it can be published.' }, { 'Cache-Control': 'no-store' });
+    note.status = 'published';
+    note.updatedAt = nowIso();
+    note.publishedAt = note.publishedAt || note.updatedAt;
+    writeStore(store);
+    return sendJson(res, 200, { note }, { 'Cache-Control': 'no-store' });
+  }
+
+  const unpublishMatch = pathname.match(/^\/api\/admin\/notes\/([^/]+)\/unpublish$/);
+  if (req.method === 'POST' && unpublishMatch) {
+    if (!requireAuth(req, res)) return;
+    const id = decodeURIComponent(unpublishMatch[1]);
+    const store = readStore();
+    const note = store.notes.find(item => item.id === id);
+    if (!note) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
+    note.status = 'draft';
+    note.updatedAt = nowIso();
+    writeStore(store);
+    return sendJson(res, 200, { note }, { 'Cache-Control': 'no-store' });
+  }
+
+  if (req.method === 'DELETE') {
+    const id = routeParam(pathname, '/api/admin/notes/');
+    if (id) {
+      if (!requireAuth(req, res)) return;
+      const store = readStore();
+      const index = store.notes.findIndex(item => item.id === id);
+      if (index === -1) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
+      store.notes.splice(index, 1);
+      writeStore(store);
+      return sendNoContent(res);
+    }
+  }
+
+  return sendJson(res, 404, { error: 'Not found.' });
+}
+
+const server = http.createServer((req, res) => {
+  handle(req, res).catch(error => {
+    const statusCode = Number(error.statusCode) || 500;
+    if (statusCode >= 500) console.error(error);
+    if (!res.headersSent) {
+      sendJson(res, statusCode, { error: statusCode >= 500 ? 'Internal server error.' : error.message }, { 'Cache-Control': 'no-store' });
+    } else {
+      res.end();
+    }
+  });
+});
+
+const cleanupTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of sessions.entries()) {
+    if (session.expiresAt <= now) sessions.delete(token);
+  }
+  for (const [ip, state] of loginAttempts.entries()) {
+    if (state.resetAt <= now) loginAttempts.delete(ip);
+  }
+}, 60 * 60 * 1000);
+cleanupTimer.unref();
+
+server.listen(PORT, HOST, () => {
+  ensureStore();
+  console.log(`Notes API listening on http://${HOST}:${PORT}`);
+  console.log(`Data file: ${DATA_PATH}`);
+});
