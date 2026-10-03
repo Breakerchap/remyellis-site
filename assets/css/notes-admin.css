@@ -462,3 +462,12 @@
     display: none;
   }
 }
+
+
+.format-help {
+  color: var(--muted-soft);
+  display: block;
+  font-size: 0.66rem;
+  line-height: 1.45;
+  margin-top: 0.42rem;
+}
