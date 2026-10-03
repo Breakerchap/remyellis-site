@@ -644,3 +644,12 @@ textarea {
 .contact-links {
   margin-bottom: 0;
 }
+
+
+.intro-notes-link {
+  margin: 1.5rem 0 0;
+}
+
+.intro-notes-link .text-link {
+  font-size: 0.82rem;
+}
