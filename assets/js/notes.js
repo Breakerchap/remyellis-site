@@ -46,31 +46,32 @@
     return template.innerHTML;
   }
 
+  function addStyle(target, css, name) {
+    if (!css || !css.trim()) return;
+    const style = document.createElement('style');
+    style.dataset.noteStyle = name;
+    style.textContent = css;
+    target.prepend(style);
+  }
+
+  function renderMath(target) {
+    if (!window.renderMathInElement) return;
+    window.renderMathInElement(target, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '\\[', right: '\\]', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+      ],
+      throwOnError: false,
+    });
+  }
+
   function renderBody(note, target) {
-    const rendered = note.format === 'html'
-      ? note.body
-      : (window.marked ? window.marked.parse(note.body, { gfm: true, breaks: false }) : `<pre>${escapeHtml(note.body)}</pre>`);
-
-    target.innerHTML = sanitiseTrustedHtml(rendered);
-
-    if (note.customCss) {
-      const style = document.createElement('style');
-      style.dataset.noteStyle = note.slug;
-      style.textContent = note.customCss;
-      target.prepend(style);
-    }
-
-    if (window.renderMathInElement) {
-      window.renderMathInElement(target, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\(', right: '\\)', display: false },
-        ],
-        throwOnError: false,
-      });
-    }
+    target.innerHTML = sanitiseTrustedHtml(note.html || '');
+    addStyle(target, note.compilerCss || '', 'wikimd');
+    addStyle(target, note.customCss || '', note.slug || 'custom');
+    renderMath(target);
 
     target.querySelectorAll('a').forEach(link => {
       if (link.hostname && link.hostname !== window.location.hostname) {
