@@ -136,12 +136,20 @@
   function showLogin() {
     loginView.hidden = false;
     appView.hidden = true;
+    logoutButton.hidden = true;
     setTimeout(() => passwordInput.focus(), 0);
   }
 
   function showApp() {
     loginView.hidden = true;
     appView.hidden = false;
+    logoutButton.hidden = false;
+  }
+
+  function localToday() {
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000);
+    return local.toISOString().slice(0, 10);
   }
 
   function formData() {
@@ -189,7 +197,7 @@
     currentStatus = 'draft';
     slugWasEdited = false;
     titleInput.value = '';
-    dateInput.value = new Date().toISOString().slice(0, 10);
+    dateInput.value = localToday();
     slugInput.value = '';
     formatInput.value = 'markdown';
     bodyInput.value = '';
