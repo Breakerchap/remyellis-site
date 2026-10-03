@@ -110,7 +110,7 @@
       ...options,
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 && path !== '/api/admin/login') {
       showLogin();
       throw new Error('Your session has expired. Sign in again.');
     }
