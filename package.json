@@ -10,5 +10,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "wikimd": "github:Breakerchap/WikiMD#b6bbff19551d5673928d7f91c3677f59e6fc233e"
   }
 }
