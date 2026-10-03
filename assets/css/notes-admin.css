@@ -1,3 +1,69 @@
+.admin-page [hidden] {
+  display: none !important;
+}
+
+.notes-topbar {
+  align-items: center;
+  background: rgba(251, 254, 254, 0.95);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  min-height: 4.5rem;
+  padding: 0.55rem clamp(1.2rem, 4vw, 4rem);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(14px);
+}
+
+.notes-brand {
+  align-items: center;
+  border: 0;
+  color: var(--ink-strong);
+  display: inline-flex;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  gap: 0.7rem;
+}
+
+.notes-brand img {
+  display: block;
+  height: 2.25rem;
+  object-fit: contain;
+  width: 2.25rem;
+}
+
+.notes-topbar nav {
+  align-items: center;
+  display: flex;
+  gap: 1.25rem;
+}
+
+.notes-topbar nav a,
+.admin-topbar-button {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  height: auto;
+  letter-spacing: 0.035em;
+  line-height: 1.4;
+  padding: 0.2rem 0;
+  text-transform: none;
+}
+
+.notes-topbar nav a:hover,
+.admin-topbar-button:hover {
+  border-bottom-color: var(--teal);
+  color: var(--teal-deep) !important;
+}
+
 .admin-page {
   overflow-x: hidden;
 }
