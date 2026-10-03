@@ -15,7 +15,6 @@
   const titleInput = document.querySelector('#note-title');
   const dateInput = document.querySelector('#note-date');
   const slugInput = document.querySelector('#note-slug');
-  const formatInput = document.querySelector('#note-format');
   const bodyInput = document.querySelector('#note-body');
   const cssInput = document.querySelector('#note-css');
   const saveButton = document.querySelector('#save-note');
@@ -73,30 +72,32 @@
     return template.innerHTML;
   }
 
-  function renderPreview() {
-    const raw = bodyInput.value;
-    const html = formatInput.value === 'html'
-      ? raw
-      : (window.marked ? window.marked.parse(raw, { gfm: true, breaks: false }) : `<pre>${escapeHtml(raw)}</pre>`);
+  function addStyle(target, css, name) {
+    if (!css || !css.trim()) return;
+    const style = document.createElement('style');
+    style.dataset.noteStyle = name;
+    style.textContent = css;
+    target.prepend(style);
+  }
 
-    preview.innerHTML = sanitiseTrustedHtml(html);
-    if (cssInput.value.trim()) {
-      const style = document.createElement('style');
-      style.textContent = cssInput.value;
-      preview.prepend(style);
-    }
+  function renderMath(target) {
+    if (!window.renderMathInElement) return;
+    window.renderMathInElement(target, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '\\[', right: '\\]', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+      ],
+      throwOnError: false,
+    });
+  }
 
-    if (window.renderMathInElement) {
-      window.renderMathInElement(preview, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\(', right: '\\)', display: false },
-        ],
-        throwOnError: false,
-      });
-    }
+  function renderCompiled(target, rendered, customCss) {
+    target.innerHTML = sanitiseTrustedHtml(rendered.html || '');
+    addStyle(target, rendered.compilerCss || '', 'wikimd');
+    addStyle(target, customCss || '', 'custom');
+    renderMath(target);
   }
 
   async function api(path, options = {}) {
@@ -157,7 +158,7 @@
       title: titleInput.value.trim(),
       date: dateInput.value,
       slug: slugInput.value.trim(),
-      format: formatInput.value,
+      format: 'wikimd',
       body: bodyInput.value,
       customCss: cssInput.value,
     };
@@ -191,6 +192,11 @@
     deleteButton.hidden = !currentId;
   }
 
+  function confirmDiscardIfNeeded() {
+    if (!isDirty()) return true;
+    return window.confirm('You have unsaved changes. Discard them?');
+  }
+
   function openBlankNote() {
     if (!confirmDiscardIfNeeded()) return;
     currentId = null;
@@ -199,7 +205,6 @@
     titleInput.value = '';
     dateInput.value = localToday();
     slugInput.value = '';
-    formatInput.value = 'markdown';
     bodyInput.value = '';
     cssInput.value = '';
     savedSnapshot = null;
@@ -207,14 +212,10 @@
     editor.hidden = false;
     updateStatus();
     updateSaveState();
-    renderPreview();
+    preview.innerHTML = '';
+    showWritePane();
     titleInput.focus();
     highlightCurrent();
-  }
-
-  function confirmDiscardIfNeeded() {
-    if (!isDirty()) return true;
-    return window.confirm('You have unsaved changes. Discard them?');
   }
 
   async function openNote(id) {
@@ -230,7 +231,6 @@
       titleInput.value = note.title;
       dateInput.value = note.date;
       slugInput.value = note.slug;
-      formatInput.value = note.format;
       bodyInput.value = note.body;
       cssInput.value = note.customCss || '';
       savedSnapshot = snapshot();
@@ -238,7 +238,8 @@
       editor.hidden = false;
       updateStatus();
       updateSaveState();
-      renderPreview();
+      preview.innerHTML = '';
+      showWritePane();
       highlightCurrent();
     } catch (error) {
       showError(error.message);
@@ -291,6 +292,22 @@
     const data = await api('/api/admin/notes');
     notes = data.notes || [];
     renderNoteList();
+  }
+
+  async function renderPreview() {
+    showError('');
+    preview.innerHTML = '<p class="notes-message">Rendering WikiMD…</p>';
+
+    try {
+      const data = await api('/api/admin/render', {
+        method: 'POST',
+        body: JSON.stringify({ body: bodyInput.value }),
+      });
+      renderCompiled(preview, data.rendered || {}, cssInput.value);
+    } catch (error) {
+      preview.innerHTML = '';
+      showError(error.message);
+    }
   }
 
   async function saveCurrent() {
@@ -396,12 +413,12 @@
     previewButton.classList.remove('is-active');
   }
 
-  function showPreviewPane() {
-    renderPreview();
+  async function showPreviewPane() {
     editorPane.hidden = true;
     previewPane.hidden = false;
     previewButton.classList.add('is-active');
     writeButton.classList.remove('is-active');
+    await renderPreview();
   }
 
   loginForm.addEventListener('submit', async event => {
@@ -448,7 +465,7 @@
     slugWasEdited = true;
     updateSaveState();
   });
-  [dateInput, formatInput, bodyInput, cssInput].forEach(input => {
+  [dateInput, bodyInput, cssInput].forEach(input => {
     input.addEventListener('input', updateSaveState);
     input.addEventListener('change', updateSaveState);
   });
