@@ -14,43 +14,69 @@
   <link rel="stylesheet" href="assets/css/notes.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
+  <noscript>
+    <link rel="stylesheet" href="assets/css/noscript.css" />
+  </noscript>
+
   <script defer src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <script defer src="assets/js/notes.js"></script>
 </head>
 
-<body class="notes-page">
-  <header class="notes-topbar">
-    <a class="notes-brand" href="/" aria-label="Remy Ellis home">
-      <img src="assets/css/images/Signature.png" alt="" width="38" height="38" />
-      <span>Remy Ellis</span>
-    </a>
-    <nav aria-label="Notes navigation">
-      <a href="/">Home</a>
-      <a class="is-current" href="/notes.html">Notes</a>
-    </nav>
-  </header>
+<body class="is-preload notes-page">
 
-  <main class="notes-shell">
-    <header class="notes-intro">
-      <p class="eyebrow">Notes</p>
-      <h1>Notes</h1>
-      <p>Occasional notes on mathematics, software, and other things I am working through.</p>
-    </header>
+  <section id="sidebar">
+    <div class="inner">
+      <a class="site-mark" href="/" aria-label="Remy Ellis home">
+        <img src="assets/css/images/Signature.png" alt="RE" width="40" height="40" />
+      </a>
+      <nav aria-label="Notes navigation">
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a class="active" href="/notes.html">Notes</a></li>
+        </ul>
+      </nav>
+    </div>
+  </section>
 
-    <section aria-live="polite">
-      <p id="notes-error" class="notes-message notes-error" hidden></p>
-      <p id="notes-empty" class="notes-message" hidden>No notes here yet.</p>
-      <div id="notes-list" class="notes-list">
-        <p class="notes-message">Loading notes…</p>
+  <div id="wrapper">
+    <section class="wrapper notes-hero fade-up">
+      <div class="inner">
+        <p class="eyebrow">Notes</p>
+        <h1>Notes</h1>
+        <p class="lead">Things worth keeping, without making them papers.</p>
+        <p class="intro-copy">Occasional notes on mathematics, software, and whatever else I am working through.</p>
       </div>
     </section>
-  </main>
 
-  <footer class="notes-footer">
-    <p>&copy; 2026 Remy Ellis</p>
+    <section class="wrapper section-shell notes-section fade-up">
+      <div class="inner notes-inner">
+        <p id="notes-error" class="notes-message notes-error" hidden></p>
+        <p id="notes-empty" class="notes-message" hidden>No notes here yet.</p>
+        <div id="notes-list" class="notes-list" aria-live="polite">
+          <p class="notes-message">Loading notes…</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer id="footer">
+    <div class="inner">
+      <p>
+        &copy; 2026 Remy Ellis &nbsp;·&nbsp;
+        <a href="/">Home</a>
+      </p>
+    </div>
   </footer>
+
+  <script src="assets/js/jquery.min.js"></script>
+  <script src="assets/js/jquery.scrollex.min.js"></script>
+  <script src="assets/js/jquery.scrolly.min.js"></script>
+  <script src="assets/js/browser.min.js"></script>
+  <script src="assets/js/breakpoints.min.js"></script>
+  <script src="assets/js/util.js"></script>
+  <script src="assets/js/main.js"></script>
 </body>
 
 </html>
