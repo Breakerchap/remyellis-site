@@ -1,0 +1,322 @@
+body.notes-page {
+  background: var(--paper);
+  min-height: 100vh;
+}
+
+.notes-topbar {
+  align-items: center;
+  background: rgba(251, 254, 254, 0.95);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  min-height: 4.5rem;
+  padding: 0.55rem clamp(1.2rem, 4vw, 4rem);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(14px);
+}
+
+.notes-brand {
+  align-items: center;
+  border: 0;
+  color: var(--ink-strong);
+  display: inline-flex;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  gap: 0.7rem;
+}
+
+.notes-brand img {
+  display: block;
+  height: 2.25rem;
+  object-fit: contain;
+  width: 2.25rem;
+}
+
+.notes-topbar nav {
+  align-items: center;
+  display: flex;
+  gap: 1.25rem;
+}
+
+.notes-topbar nav a,
+.admin-topbar-button {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  height: auto;
+  letter-spacing: 0.035em;
+  line-height: 1.4;
+  padding: 0.2rem 0;
+  text-transform: none;
+}
+
+.notes-topbar nav a:hover,
+.notes-topbar nav a.is-current,
+.admin-topbar-button:hover {
+  border-bottom-color: var(--teal);
+  color: var(--teal-deep) !important;
+}
+
+.notes-shell {
+  margin: 0 auto;
+  max-width: 58rem;
+  padding: clamp(4.5rem, 10vw, 8rem) clamp(1.25rem, 5vw, 3.5rem) 7rem;
+}
+
+.notes-intro {
+  border-bottom: 1px solid var(--line-strong);
+  margin-bottom: 0;
+  padding-bottom: 3rem;
+}
+
+.notes-intro .eyebrow {
+  margin-bottom: 0.8rem;
+}
+
+.notes-intro h1 {
+  font-size: clamp(3.2rem, 8vw, 5.8rem);
+  margin-bottom: 0.45rem;
+}
+
+.notes-intro > p:last-child {
+  color: #587582;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.13rem;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 40rem;
+}
+
+.notes-list {
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.note-card {
+  border-bottom: 1px solid var(--line);
+  padding: 2.5rem 0 2.65rem;
+  scroll-margin-top: 6rem;
+}
+
+.note-card:last-child {
+  border-bottom: 0;
+}
+
+.note-card-header time {
+  color: var(--muted-soft);
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.075em;
+  margin-bottom: 0.65rem;
+  text-transform: uppercase;
+}
+
+.note-card-header h2 {
+  font-size: clamp(1.55rem, 3.2vw, 2.1rem);
+  margin: 0;
+}
+
+.note-excerpt {
+  color: #557482;
+  display: -webkit-box;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  margin: 1rem 0 0;
+  max-width: 48rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.note-controls {
+  margin-top: 1.2rem;
+}
+
+.note-toggle {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba(15, 157, 146, 0.35);
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--teal-deep) !important;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  height: auto;
+  letter-spacing: 0.015em;
+  line-height: 1.4;
+  padding: 0 0 0.15rem;
+  text-transform: none;
+}
+
+.note-toggle:hover {
+  border-bottom-color: var(--teal-deep);
+}
+
+.note-toggle:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.note-body {
+  color: #294e60;
+  font-size: 0.98rem;
+  line-height: 1.82;
+  margin-top: 2rem;
+}
+
+.note-body > :first-child:not(style) {
+  margin-top: 0;
+}
+
+.note-body h1,
+.note-body h2,
+.note-body h3,
+.note-body h4 {
+  margin-bottom: 0.7em;
+  margin-top: 1.7em;
+}
+
+.note-body h1 {
+  font-size: 2.1rem;
+}
+
+.note-body h2 {
+  font-size: 1.65rem;
+}
+
+.note-body h3 {
+  font-size: 1.3rem;
+}
+
+.note-body p,
+.note-body ul,
+.note-body ol,
+.note-body blockquote,
+.note-body pre,
+.note-body table {
+  margin-bottom: 1.25rem;
+}
+
+.note-body ul,
+.note-body ol {
+  padding-left: 1.5rem;
+}
+
+.note-body blockquote {
+  border-left: 3px solid var(--teal);
+  color: #587582;
+  font-style: italic;
+  margin-left: 0;
+  padding-left: 1.25rem;
+}
+
+.note-body pre {
+  background: #edf7fa;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  overflow-x: auto;
+  padding: 1rem 1.1rem;
+}
+
+.note-body pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.note-body img {
+  border-radius: 0.35rem;
+  height: auto;
+  max-width: 100%;
+}
+
+.note-body table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  width: max-content;
+}
+
+.note-body th,
+.note-body td {
+  border: 1px solid var(--line-strong);
+  padding: 0.55rem 0.75rem;
+}
+
+.note-body .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2rem 0;
+}
+
+.notes-message {
+  color: var(--muted-soft);
+  padding: 2rem 0;
+}
+
+.notes-error,
+.notes-inline-error {
+  color: #9c3434;
+}
+
+.notes-footer {
+  border-top: 1px solid var(--line);
+  color: var(--muted-soft);
+  font-size: 0.75rem;
+  margin: 0 auto;
+  max-width: 58rem;
+  padding: 2rem clamp(1.25rem, 5vw, 3.5rem) 3rem;
+}
+
+.notes-footer p {
+  margin: 0;
+}
+
+.sr-only {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media screen and (max-width: 736px) {
+  .notes-topbar {
+    min-height: 4rem;
+    padding-inline: 1rem;
+  }
+
+  .notes-brand span {
+    display: none;
+  }
+
+  .notes-topbar nav {
+    gap: 0.9rem;
+  }
+
+  .notes-shell {
+    padding-top: 4.4rem;
+  }
+
+  .notes-intro {
+    padding-bottom: 2.25rem;
+  }
+
+  .note-card {
+    padding: 2rem 0 2.15rem;
+  }
+}
