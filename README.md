@@ -58,9 +58,9 @@ Local development defaults to the admin password `dev`. It binds to `127.0.0.1`,
 
 Nothing is autosaved. A draft is written to that local data file only when you press **Save draft** or use `Ctrl+S` / `Cmd+S`.
 
-To use a different local password for a session, set it before starting the server:
+To use a different local password for a session, set the development-only variable before starting the server:
 
-    $env:NOTES_ADMIN_PASSWORD = "something-else"
+    $env:NOTES_DEV_PASSWORD = "something-else"
     npm run dev
 
 Press `Ctrl+C` in the terminal to stop the local server.
