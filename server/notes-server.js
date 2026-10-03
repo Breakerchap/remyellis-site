@@ -11,6 +11,8 @@ const PORT = Number(process.env.NOTES_PORT || 8790);
 const DATA_PATH = process.env.NOTES_DATA_PATH || path.join(__dirname, 'data', 'notes.json');
 const ADMIN_PASSWORD = process.env.NOTES_ADMIN_PASSWORD;
 const SECURE_COOKIE = process.env.NOTES_SECURE_COOKIE !== '0';
+const SERVE_STATIC = process.env.NOTES_SERVE_STATIC === '1';
+const SITE_ROOT = path.resolve(__dirname, '..');
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -319,6 +321,81 @@ function routeParam(pathname, prefix) {
   }
 }
 
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.pdf': 'application/pdf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.txt': 'text/plain; charset=utf-8',
+};
+
+function staticContentType(filePath) {
+  return MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+}
+
+function serveStatic(req, res, pathname) {
+  if (!SERVE_STATIC || !['GET', 'HEAD'].includes(req.method)) return false;
+
+  let decodedPath;
+  try {
+    decodedPath = decodeURIComponent(pathname);
+  } catch {
+    return false;
+  }
+
+  if (decodedPath.includes('\0')) return false;
+
+  const relativePath = decodedPath === '/'
+    ? 'index.html'
+    : decodedPath.replace(/^\/+/, '');
+  let filePath = path.resolve(SITE_ROOT, relativePath);
+  const rootPrefix = `${SITE_ROOT}${path.sep}`;
+
+  if (filePath !== SITE_ROOT && !filePath.startsWith(rootPrefix)) return false;
+
+  let stat;
+  try {
+    stat = fs.statSync(filePath);
+    if (stat.isDirectory()) {
+      filePath = path.join(filePath, 'index.html');
+      stat = fs.statSync(filePath);
+    }
+  } catch {
+    return false;
+  }
+
+  if (!stat.isFile()) return false;
+
+  const headers = {
+    'Content-Type': staticContentType(filePath),
+    'Content-Length': stat.size,
+    'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'same-origin',
+  };
+
+  res.writeHead(200, headers);
+  if (req.method === 'HEAD') {
+    res.end();
+  } else {
+    fs.createReadStream(filePath).pipe(res);
+  }
+  return true;
+}
+
 async function handle(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
@@ -488,6 +565,8 @@ async function handle(req, res) {
     }
   }
 
+  if (!pathname.startsWith('/api/') && serveStatic(req, res, pathname)) return;
+
   return sendJson(res, 404, { error: 'Not found.' });
 }
 
@@ -516,6 +595,7 @@ cleanupTimer.unref();
 
 server.listen(PORT, HOST, () => {
   ensureStore();
-  console.log(`Notes API listening on http://${HOST}:${PORT}`);
+  console.log(`Notes server listening on http://${HOST}:${PORT}`);
+  if (SERVE_STATIC) console.log(`Site: http://${HOST}:${PORT}/`);
   console.log(`Data file: ${DATA_PATH}`);
 });
