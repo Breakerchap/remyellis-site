@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
+const { renderFragment: renderWikiMdFragment } = require('wikimd');
 
 const HOST = process.env.NOTES_HOST || '127.0.0.1';
 const PORT = Number(process.env.NOTES_PORT || 8790);
@@ -34,6 +35,15 @@ const loginAttempts = new Map();
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function renderWikiMd(source) {
+  const rendered = renderWikiMdFragment(String(source || ''), { html: true });
+  return {
+    html: rendered.html || '',
+    compilerCss: rendered.css || '',
+    warnings: Array.isArray(rendered.warnings) ? rendered.warnings : [],
+  };
 }
 
 function baseHeaders(extra = {}) {
@@ -203,29 +213,23 @@ function slugify(value) {
 }
 
 function plainTextFromBody(note) {
-  let text = String(note.body || '');
-  if (note.format === 'html') {
-    text = text
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ');
-  } else {
-    text = text
-      .replace(/```[\s\S]*?```/g, ' ')
-      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-      .replace(/^#{1,6}\s+/gm, '')
-      .replace(/^\s*[-*+]\s+/gm, '')
-      .replace(/^\s*>\s?/gm, '')
-      .replace(/[*_~`]/g, ' ')
-      .replace(/<[^>]+>/g, ' ');
+  let text;
+  try {
+    text = renderWikiMd(note.body).html;
+  } catch {
+    text = String(note.body || '');
   }
 
   return text
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
+    .replace(/&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -243,7 +247,7 @@ function publicSummary(note) {
     slug: note.slug,
     title: note.title,
     date: note.date,
-    format: note.format,
+    format: 'wikimd',
     excerpt: makeExcerpt(note),
     publishedAt: note.publishedAt,
     updatedAt: note.updatedAt,
@@ -251,9 +255,12 @@ function publicSummary(note) {
 }
 
 function publicNote(note) {
+  const rendered = renderWikiMd(note.body);
   return {
     ...publicSummary(note),
-    body: note.body,
+    html: rendered.html,
+    compilerCss: rendered.compilerCss,
+    warnings: rendered.warnings,
     customCss: note.customCss || '',
   };
 }
@@ -264,10 +271,11 @@ function normaliseNoteInput(input, existing, store) {
     throw Object.assign(new Error('Title must be between 1 and 180 characters.'), { statusCode: 400 });
   }
 
-  const format = String(input.format ?? existing?.format ?? 'markdown').toLowerCase();
-  if (!['markdown', 'html'].includes(format)) {
-    throw Object.assign(new Error('Format must be markdown or html.'), { statusCode: 400 });
+  const requestedFormat = String(input.format ?? existing?.format ?? 'wikimd').toLowerCase();
+  if (!['wikimd', 'markdown', 'html'].includes(requestedFormat)) {
+    throw Object.assign(new Error('Unsupported note format.'), { statusCode: 400 });
   }
+  const format = 'wikimd';
 
   const date = String(input.date ?? existing?.date ?? new Date().toISOString().slice(0, 10));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
@@ -461,6 +469,18 @@ async function handle(req, res) {
   if (req.method === 'GET' && pathname === '/api/admin/session') {
     if (!requireAuth(req, res)) return;
     return sendJson(res, 200, { authenticated: true }, { 'Cache-Control': 'no-store' });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/render') {
+    if (!requireAuth(req, res)) return;
+    const input = await readJsonBody(req);
+    const body = String(input.body || '');
+    if (Buffer.byteLength(body, 'utf8') > 1024 * 1024) {
+      return sendJson(res, 413, { error: 'Note body is too large.' }, { 'Cache-Control': 'no-store' });
+    }
+
+    const rendered = renderWikiMd(body);
+    return sendJson(res, 200, { rendered }, { 'Cache-Control': 'no-store' });
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/notes') {
