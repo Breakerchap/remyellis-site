@@ -646,10 +646,76 @@ textarea {
 }
 
 
-.intro-notes-link {
-  margin: 1.5rem 0 0;
+
+
+/* Compact Notes preview on the homepage. */
+.notes-home-section > .inner {
+  padding-bottom: 4.75rem;
+  padding-top: 4.75rem;
 }
 
-.intro-notes-link .text-link {
-  font-size: 0.82rem;
+.notes-home-grid {
+  align-items: start;
+  display: grid;
+  gap: clamp(2.5rem, 7vw, 6rem);
+  grid-template-columns: minmax(0, 0.9fr) minmax(19rem, 1.1fr);
+}
+
+.notes-home-copy {
+  max-width: 35rem;
+}
+
+.notes-home-copy .eyebrow {
+  margin-bottom: 0.55rem;
+}
+
+.notes-home-copy h2 {
+  margin-bottom: 0.8rem;
+}
+
+.notes-home-copy > p:not(.eyebrow) {
+  color: #567584;
+  font-size: 0.95rem;
+  line-height: 1.8;
+  margin-bottom: 1.25rem;
+}
+
+.home-latest-note {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line-strong);
+  padding: 1.7rem 0 1.8rem;
+}
+
+.home-latest-note time {
+  color: var(--muted-soft);
+  display: block;
+  font-size: 0.67rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  margin-top: 0.45rem;
+  text-transform: uppercase;
+}
+
+.home-latest-note h3 {
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  margin: 0.45rem 0 0.65rem;
+}
+
+.home-latest-note p {
+  color: #55717e;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  margin-bottom: 0.9rem;
+}
+
+@media screen and (max-width: 736px) {
+  .notes-home-section > .inner {
+    padding-bottom: 4rem;
+    padding-top: 4rem;
+  }
+
+  .notes-home-grid {
+    gap: 2.2rem;
+    grid-template-columns: 1fr;
+  }
 }
