@@ -23,9 +23,33 @@ The Notes section is separate from Writing. Public notes are listed newest-first
 
 The editor is at `/notes-admin.html`. It supports:
 
-- Markdown with embedded raw HTML
-- basic LaTeX using `$...$`, `$$...$$`, `\(...\)` and `\[...\]`
-- raw HTML notes
+- WikiMD, rendered by the compiler from `Breakerchap/WikiMD`
+- raw HTML embedded directly inside WikiMD
+- LaTeX using `$...REMYELLIS.AU — PORTFOLIO SITE
+============================
+
+This is the source for remyellis.au. The main portfolio is static HTML/CSS/JS based on the Hyperspace template by HTML5 UP, with a small Node backend for Notes.
+
+Main files
+----------
+
+- `index.html` — portfolio homepage
+- `notes.html` — public Notes page
+- `notes-admin.html` — private Notes editor
+- `assets/css/remy.css` — main portfolio styling
+- `assets/css/notes.css` — public Notes styling
+- `assets/css/notes-admin.css` — editor styling
+- `assets/js/notes.js` — public Notes client
+- `assets/js/notes-admin.js` — Notes editor client
+- `server/notes-server.js` — Notes API and server-side storage
+
+Notes
+-----
+
+The Notes section is separate from Writing. Public notes are listed newest-first with a short preview; opening one expands the full note in place.
+
+, `$...$`, `\(...\)` and `\[...\]`
+- WikiMD callouts, highlighting, collapsible sections and other non-tab formatting features
 - per-note custom CSS
 - custom fonts through `@font-face` in the note CSS
 - server-side drafts that are available across devices
@@ -33,19 +57,20 @@ The editor is at `/notes-admin.html`. It supports:
 - publish, unpublish and delete controls
 - `Ctrl+S` / `Cmd+S` as an explicit Save draft shortcut
 
-Markdown is rendered in the browser with Marked, including raw HTML embedded directly in Markdown notes. LaTeX is rendered with KaTeX. Those browser libraries are pinned to specific CDN versions.
+WikiMD is compiled server-side into an HTML fragment using the WikiMD compiler's tab-free renderer. Tab directives are intentionally ignored in Notes. LaTeX delimiters are preserved by WikiMD and rendered in the browser with KaTeX.
 
 Notes data is not stored in Git. By default the service can use a local data file, but production should set `NOTES_DATA_PATH=/var/lib/remy-notes/notes.json`.
 
 Local testing on Windows
 ------------------------
 
-You can run the portfolio and Notes backend together with one command. Node 20 or newer is required, but there are no npm dependencies to install.
+You can run the portfolio and Notes backend together with one command after installing the WikiMD dependency. Node 20 or newer is required.
 
 From PowerShell in the repository folder:
 
     cd C:\Users\Remy\Documents\CodingProjects\remyellis-site
     git pull
+    npm install
     npm run dev
 
 Then open:
@@ -68,9 +93,12 @@ Press `Ctrl+C` in the terminal to stop the local server.
 Production setup on the Pi
 --------------------------
 
-The Notes backend uses only Node's built-in modules, so there is no `npm install` step.
+The Notes backend uses WikiMD as an npm dependency.
 
-1. Copy/deploy the repository to `/var/www/remyellis.au` as usual.
+1. Copy/deploy the repository to `/var/www/remyellis.au` as usual, then install dependencies:
+
+       cd /var/www/remyellis.au
+       npm install --omit=dev
 
 2. Create the private data directory:
 
