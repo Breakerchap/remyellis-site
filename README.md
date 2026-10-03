@@ -37,6 +37,34 @@ Markdown is rendered in the browser with Marked. LaTeX is rendered with KaTeX. T
 
 Notes data is not stored in Git. By default the service can use a local data file, but production should set `NOTES_DATA_PATH=/var/lib/remy-notes/notes.json`.
 
+Local testing on Windows
+------------------------
+
+You can run the portfolio and Notes backend together with one command. Node 20 or newer is required, but there are no npm dependencies to install.
+
+From PowerShell in the repository folder:
+
+    cd C:\Users\Remy\Documents\CodingProjects\remyellis-site
+    git pull
+    npm run dev
+
+Then open:
+
+- `http://127.0.0.1:8790/` — portfolio homepage
+- `http://127.0.0.1:8790/notes.html` — public Notes page
+- `http://127.0.0.1:8790/notes-admin.html` — Notes editor
+
+Local development defaults to the admin password `dev`. It binds to `127.0.0.1`, disables the HTTPS-only cookie flag, serves the static site itself, and stores test notes in `server/data/notes.dev.json`.
+
+Nothing is autosaved. A draft is written to that local data file only when you press **Save draft** or use `Ctrl+S` / `Cmd+S`.
+
+To use a different local password for a session, set it before starting the server:
+
+    $env:NOTES_ADMIN_PASSWORD = "something-else"
+    npm run dev
+
+Press `Ctrl+C` in the terminal to stop the local server.
+
 Production setup on the Pi
 --------------------------
 
