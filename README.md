@@ -23,7 +23,7 @@ The Notes section is separate from Writing. Public notes are listed newest-first
 
 The editor is at `/notes-admin.html`. It supports:
 
-- Markdown
+- Markdown with embedded raw HTML
 - basic LaTeX using `$...$`, `$$...$$`, `\(...\)` and `\[...\]`
 - raw HTML notes
 - per-note custom CSS
@@ -33,7 +33,7 @@ The editor is at `/notes-admin.html`. It supports:
 - publish, unpublish and delete controls
 - `Ctrl+S` / `Cmd+S` as an explicit Save draft shortcut
 
-Markdown is rendered in the browser with Marked. LaTeX is rendered with KaTeX. Those browser libraries are pinned to specific CDN versions.
+Markdown is rendered in the browser with Marked, including raw HTML embedded directly in Markdown notes. LaTeX is rendered with KaTeX. Those browser libraries are pinned to specific CDN versions.
 
 Notes data is not stored in Git. By default the service can use a local data file, but production should set `NOTES_DATA_PATH=/var/lib/remy-notes/notes.json`.
 
