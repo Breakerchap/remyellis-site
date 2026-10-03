@@ -361,6 +361,10 @@ function serveStatic(req, res, pathname) {
   const relativePath = decodedPath === '/'
     ? 'index.html'
     : decodedPath.replace(/^\/+/, '');
+  const publicPath = relativePath.split(path.sep).join('/');
+  const allowedRootFiles = new Set(['index.html', 'notes.html', 'notes-admin.html']);
+  if (!allowedRootFiles.has(publicPath) && !publicPath.startsWith('assets/')) return false;
+
   let filePath = path.resolve(SITE_ROOT, relativePath);
   const rootPrefix = `${SITE_ROOT}${path.sep}`;
 
