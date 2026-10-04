@@ -14,6 +14,7 @@ const ADMIN_PASSWORD = process.env.NOTES_ADMIN_PASSWORD;
 const SECURE_COOKIE = process.env.NOTES_SECURE_COOKIE !== '0';
 const SERVE_STATIC = process.env.NOTES_SERVE_STATIC === '1';
 const SITE_ROOT = path.resolve(__dirname, '..');
+const SITE_URL = (process.env.SITE_URL || 'https://remyellis.au').replace(/\/+$/, '');
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
@@ -79,6 +80,23 @@ function sendNoContent(res, extraHeaders = {}) {
     ...extraHeaders,
   });
   res.end();
+}
+
+function sendText(res, statusCode, body, contentType, extraHeaders = {}) {
+  const text = String(body);
+  res.writeHead(statusCode, {
+    'Content-Type': contentType,
+    'Content-Length': Buffer.byteLength(text),
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'same-origin',
+    ...extraHeaders,
+  });
+  if (res.req?.method === 'HEAD') {
+    res.end();
+  } else {
+    res.end(text);
+  }
 }
 
 async function readJsonBody(req) {
@@ -340,10 +358,207 @@ function makeRenderedExcerpt(note) {
   return { html, css: rendered.compilerCss || '' };
 }
 
+function notePath(slug) {
+  return `/notes/${encodeURIComponent(slug)}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeXml(value) {
+  return escapeHtml(value);
+}
+
+function safeStyleText(value) {
+  return String(value || '').replace(/<\/style/gi, '<\\/style');
+}
+
+function sanitiseRenderedHtml(html) {
+  return String(html || '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<\/?(?:object|embed|base|meta)\b[^>]*>/gi, '')
+    .replace(/\s+on[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s+(?:href|src|xlink:href)\s*=\s*(["'])\s*javascript:[\s\S]*?\1/gi, '')
+    .replace(/\s+(?:href|src|xlink:href)\s*=\s*javascript:[^\s>]+/gi, '');
+}
+
+function compactDescription(note) {
+  const text = makeExcerpt(note);
+  if (text.length <= 180) return text;
+  const sliced = text.slice(0, 177);
+  const lastSpace = sliced.lastIndexOf(' ');
+  return `${sliced.slice(0, lastSpace > 130 ? lastSpace : 177).trim()}…`;
+}
+
+function displayDate(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en-AU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+function isoDateTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function renderNotePage(note) {
+  const rendered = renderWikiMd(note.body);
+  const canonicalUrl = `${SITE_URL}${notePath(note.slug)}`;
+  const description = compactDescription(note);
+  const publishedAt = isoDateTime(note.publishedAt) || `${note.date}T00:00:00.000Z`;
+  const updatedAt = isoDateTime(note.updatedAt) || publishedAt;
+  const structuredData = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: note.title,
+    description,
+    datePublished: publishedAt,
+    dateModified: updatedAt,
+    inLanguage: 'en-AU',
+    mainEntityOfPage: canonicalUrl,
+    author: {
+      '@type': 'Person',
+      name: 'Remy Ellis',
+      url: `${SITE_URL}/`,
+    },
+  }).replace(/</g, '\\u003c');
+
+  return `<!DOCTYPE HTML>
+<html lang="en-AU">
+<head>
+  <title>${escapeHtml(note.title)} - Remy Ellis</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="${escapeHtml(description)}" />
+  <meta name="author" content="Remy Ellis" />
+  <meta name="theme-color" content="#0b7f98" />
+
+  <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Remy Ellis" />
+  <meta property="og:title" content="${escapeHtml(note.title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
+  <meta property="og:locale" content="en_AU" />
+  <meta property="article:published_time" content="${escapeHtml(publishedAt)}" />
+  <meta property="article:modified_time" content="${escapeHtml(updatedAt)}" />
+
+  <script type="application/ld+json">${structuredData}</script>
+
+  <link rel="icon" type="image/png" href="/assets/css/images/Signature.png" />
+  <link rel="stylesheet" href="/assets/css/main.css" />
+  <link rel="stylesheet" href="/assets/css/remy.css" />
+  <link rel="stylesheet" href="/assets/css/notes.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+
+  <style>
+${safeStyleText(rendered.compilerCss)}
+${safeStyleText(note.customCss || '')}
+  </style>
+
+  <noscript>
+    <link rel="stylesheet" href="/assets/css/noscript.css" />
+  </noscript>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script defer src="/assets/js/note-page.js"></script>
+</head>
+
+<body class="is-preload notes-page">
+  <section id="sidebar">
+    <div class="inner">
+      <a class="site-mark" href="/" aria-label="Remy Ellis home">
+        <img src="/assets/css/images/Signature.png" alt="RE" width="40" height="40" />
+      </a>
+      <nav aria-label="Note navigation">
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a class="active" href="/notes.html">Notes</a></li>
+        </ul>
+      </nav>
+    </div>
+  </section>
+
+  <div id="wrapper">
+    <section class="wrapper notes-hero fade-up">
+      <div class="inner">
+        <p class="eyebrow">Note</p>
+        <h1>${escapeHtml(note.title)}</h1>
+        <p class="lead"><time datetime="${escapeHtml(note.date)}">${escapeHtml(displayDate(note.date))}</time></p>
+      </div>
+    </section>
+
+    <section class="wrapper section-shell notes-section fade-up">
+      <div class="inner notes-inner">
+        <article id="note-content" class="note-body">
+${sanitiseRenderedHtml(rendered.html)}
+        </article>
+        <p><a class="text-link" href="/notes.html">← All notes</a></p>
+      </div>
+    </section>
+  </div>
+
+  <footer id="footer">
+    <div class="inner">
+      <p>&copy; 2026 Remy Ellis &nbsp;·&nbsp; <a href="/notes.html">Notes</a> &nbsp;·&nbsp; <a href="/">Home</a></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/jquery.min.js"></script>
+  <script src="/assets/js/jquery.scrollex.min.js"></script>
+  <script src="/assets/js/jquery.scrolly.min.js"></script>
+  <script src="/assets/js/browser.min.js"></script>
+  <script src="/assets/js/breakpoints.min.js"></script>
+  <script src="/assets/js/util.js"></script>
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>`;
+}
+
+function renderSitemap(notes) {
+  const updatedValues = notes
+    .map(note => isoDateTime(note.updatedAt || note.publishedAt))
+    .filter(Boolean)
+    .sort();
+  const latestNotesUpdate = updatedValues.at(-1) || null;
+
+  const entries = [
+    { loc: `${SITE_URL}/` },
+    { loc: `${SITE_URL}/notes.html`, lastmod: latestNotesUpdate },
+    { loc: `${SITE_URL}/assets/A-Prime-Power-Obstruction-for-Equal-Divisor-Sums-at-Consecutive-Integers.pdf` },
+    { loc: `${SITE_URL}/assets/Stale-Bread.pdf` },
+    { loc: `${SITE_URL}/assets/What-You-Need-to-Know-About-Me.pdf` },
+    ...notes.map(note => ({
+      loc: `${SITE_URL}${notePath(note.slug)}`,
+      lastmod: isoDateTime(note.updatedAt || note.publishedAt),
+    })),
+  ];
+
+  const urls = entries.map(entry => {
+    const lastmod = entry.lastmod ? `\n    <lastmod>${escapeXml(entry.lastmod)}</lastmod>` : '';
+    return `  <url>\n    <loc>${escapeXml(entry.loc)}</loc>${lastmod}\n  </url>`;
+  }).join('\n\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+}
+
 function publicSummary(note) {
   const renderedExcerpt = makeRenderedExcerpt(note);
   return {
     slug: note.slug,
+    url: notePath(note.slug),
     title: note.title,
     date: note.date,
     format: 'wikimd',
@@ -526,6 +741,40 @@ function serveStatic(req, res, pathname) {
 async function handle(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
+
+  if (['GET', 'HEAD'].includes(req.method) && pathname === '/sitemap.xml') {
+    const store = readStore();
+    const published = sortPublicNotes(store.notes.filter(note => note.status === 'published'));
+    return sendText(res, 200, renderSitemap(published), 'application/xml; charset=utf-8', {
+      'Cache-Control': 'no-cache',
+    });
+  }
+
+  if (['GET', 'HEAD'].includes(req.method) && pathname === '/notes/') {
+    res.writeHead(308, {
+      Location: '/notes.html',
+      'Cache-Control': 'public, max-age=3600',
+    });
+    return res.end();
+  }
+
+  if (['GET', 'HEAD'].includes(req.method)) {
+    const slug = routeParam(pathname, '/notes/');
+    if (slug) {
+      const store = readStore();
+      const note = store.notes.find(item => item.status === 'published' && item.slug === slug);
+      if (!note) {
+        return sendText(res, 404, 'Note not found.', 'text/plain; charset=utf-8', {
+          'Cache-Control': 'no-cache',
+          'X-Robots-Tag': 'noindex',
+        });
+      }
+      return sendText(res, 200, renderNotePage(note), 'text/html; charset=utf-8', {
+        'Cache-Control': 'no-cache',
+        'Content-Language': 'en-AU',
+      });
+    }
+  }
 
   if (req.method === 'GET' && pathname === '/api/notes') {
     const store = readStore();
