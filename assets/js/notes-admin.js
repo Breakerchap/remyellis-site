@@ -164,10 +164,13 @@
 
     if (start === end) {
       if (event.shiftKey) {
-        const prefix = value.slice(lineStart, start);
-        const remove = prefix.endsWith(indent) ? indent.length : (prefix.endsWith(' ') ? 1 : 0);
-        if (remove) {
-          bodyInput.setRangeText('', start - remove, start, 'end');
+        const line = value.slice(lineStart);
+        const match = line.match(/^(  | |	)/);
+        if (match) {
+          const remove = match[0].length;
+          bodyInput.setRangeText('', lineStart, lineStart + remove, 'end');
+          const nextCaret = Math.max(lineStart, start - remove);
+          bodyInput.setSelectionRange(nextCaret, nextCaret);
         }
       } else {
         bodyInput.setRangeText(indent, start, end, 'end');
