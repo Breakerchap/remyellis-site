@@ -145,11 +145,18 @@
     }).join('\n') + '\n';
   }
 
+  function syncSyntaxGeometry() {
+    if (!syntaxHighlight) return;
+    syntaxHighlight.style.width = `${bodyInput.clientWidth}px`;
+    syntaxHighlight.style.height = `${bodyInput.clientHeight}px`;
+    syntaxHighlight.scrollTop = bodyInput.scrollTop;
+    syntaxHighlight.scrollLeft = bodyInput.scrollLeft;
+  }
+
   function updateSyntaxHighlight() {
     if (!syntaxHighlight) return;
     syntaxHighlight.innerHTML = highlightWmd(bodyInput.value);
-    syntaxHighlight.scrollTop = bodyInput.scrollTop;
-    syntaxHighlight.scrollLeft = bodyInput.scrollLeft;
+    syncSyntaxGeometry();
   }
 
   function handleTabIndent(event) {
@@ -615,12 +622,15 @@
   });
 
   bodyInput.addEventListener('input', updateSyntaxHighlight);
-  bodyInput.addEventListener('scroll', () => {
-    if (!syntaxHighlight) return;
-    syntaxHighlight.scrollTop = bodyInput.scrollTop;
-    syntaxHighlight.scrollLeft = bodyInput.scrollLeft;
-  });
+  bodyInput.addEventListener('scroll', syncSyntaxGeometry);
   bodyInput.addEventListener('keydown', handleTabIndent);
+
+  if ('ResizeObserver' in window) {
+    const editorResizeObserver = new ResizeObserver(syncSyntaxGeometry);
+    editorResizeObserver.observe(bodyInput);
+  } else {
+    window.addEventListener('resize', syncSyntaxGeometry);
+  }
 
   window.addEventListener('beforeunload', event => {
     if (!isDirty()) return;
