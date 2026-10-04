@@ -719,3 +719,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.notes-link {
+  font-size: 1.2rem;
+}
