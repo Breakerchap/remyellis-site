@@ -5,6 +5,10 @@ body.notes-page {
   min-height: 100vh;
 }
 
+.notes-page [hidden] {
+  display: none !important;
+}
+
 .notes-hero {
   background:
     radial-gradient(circle at 83% 18%, rgba(15, 157, 146, 0.13), transparent 23rem),
@@ -86,14 +90,33 @@ body.notes-page {
 
 .note-excerpt {
   color: #55717e;
-  display: -webkit-box;
   font-size: 0.95rem;
   line-height: 1.75;
   margin: 0.85rem 0 0;
   max-width: 52rem;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+}
+
+.note-excerpt > :first-child:not(style) {
+  margin-top: 0;
+}
+
+.note-excerpt > :last-child {
+  margin-bottom: 0;
+}
+
+.note-excerpt p,
+.note-excerpt ul,
+.note-excerpt ol,
+.note-excerpt blockquote,
+.note-excerpt pre {
+  margin-bottom: 0.65rem;
+}
+
+.note-excerpt-heading {
+  color: var(--ink-strong);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .note-controls {
