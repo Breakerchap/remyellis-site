@@ -533,7 +533,6 @@ async function handle(req, res) {
     if (!sameOrigin(req)) return sendJson(res, 403, { error: 'Origin rejected.' }, { 'Cache-Control': 'no-store' });
 
     const now = Date.now();
-    const globalSlow = globalSlowModeActive(now);
     const ip = clientIp(req);
     const rate = loginRateState(ip, now);
 
