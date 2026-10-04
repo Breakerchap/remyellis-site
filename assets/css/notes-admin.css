@@ -351,15 +351,48 @@
 }
 
 .note-body-input {
+  /* Keep the writing surface deliberately boring and browser-native.
+     Explicit text metrics avoid caret/text drift caused by inherited
+     typography from the public site. */
+  background: #ffffff !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 0.25rem !important;
+  box-shadow: none !important;
   box-sizing: border-box;
+  caret-color: #111827;
+  color: #111827 !important;
   display: block;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace !important;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  min-height: 52vh;
-  padding: 1rem !important;
+  font-family: Consolas, "Liberation Mono", "Courier New", monospace !important;
+  font-feature-settings: normal;
+  font-kerning: none;
+  font-size: 16px !important;
+  font-variant-ligatures: none;
+  font-weight: 400;
+  height: clamp(28rem, 62vh, 52rem);
+  letter-spacing: 0 !important;
+  line-height: 1.5 !important;
+  overflow: auto;
+  overflow-wrap: normal;
+  padding: 0.9rem 1rem !important;
   resize: vertical;
+  tab-size: 2;
+  text-align: left;
+  text-indent: 0;
+  text-rendering: auto;
+  text-transform: none;
+  white-space: pre-wrap;
   width: 100%;
+  word-break: normal;
+}
+
+.note-body-input:focus {
+  border-color: #6b8793 !important;
+  box-shadow: 0 0 0 1px #6b8793 !important;
+  outline: none;
+}
+
+.note-body-input::selection {
+  background: #cfe8f1;
 }
 
 .custom-css-panel {
