@@ -341,3 +341,24 @@ body.notes-page {
 .note-body .task-checkbox {
   margin-right: 0.45rem;
 }
+
+
+.note-excerpt.note-body {
+  color: #55717e;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  margin-top: 0.85rem;
+  max-width: 52rem;
+}
+
+.note-excerpt.note-body p,
+.note-excerpt.note-body ul,
+.note-excerpt.note-body ol,
+.note-excerpt.note-body blockquote,
+.note-excerpt.note-body pre {
+  margin-bottom: 0.65rem;
+}
+
+.note-excerpt.note-body > :last-child {
+  margin-bottom: 0;
+}
