@@ -67,18 +67,8 @@
     });
   }
 
-  function renderBody(note, target) {
-    target.innerHTML = sanitiseTrustedHtml(note.html || '');
-    addStyle(target, note.compilerCss || '', 'wikimd');
-    addStyle(target, note.customCss || '', note.slug || 'custom');
-    renderMath(target);
-
-    target.querySelectorAll('a').forEach(link => {
-      if (link.hostname && link.hostname !== window.location.hostname) {
-        link.target = '_blank';
-        link.rel = 'noreferrer noopener';
-      }
-    });
+  function noteUrl(note) {
+    return note.url || `/notes/${encodeURIComponent(note.slug)}`;
   }
 
   function makeCard(note) {
@@ -86,11 +76,12 @@
     article.className = 'note-card';
     article.dataset.slug = note.slug;
 
+    const url = noteUrl(note);
     const header = document.createElement('div');
     header.className = 'note-card-header';
     header.innerHTML = `
       <time datetime="${escapeHtml(note.date)}">${escapeHtml(formatDate(note.date))}</time>
-      <h2>${escapeHtml(note.title)}</h2>
+      <h2><a class="note-title-link" href="${escapeHtml(url)}">${escapeHtml(note.title)}</a></h2>
     `;
 
     const excerpt = document.createElement('div');
@@ -99,60 +90,16 @@
     addStyle(excerpt, note.excerptCss || '', `${note.slug}-excerpt`);
     renderMath(excerpt);
 
-    const body = document.createElement('div');
-    body.className = 'note-body';
-    body.hidden = true;
-
     const controls = document.createElement('div');
     controls.className = 'note-controls';
 
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'note-toggle';
-    toggle.textContent = 'Read note';
-    toggle.setAttribute('aria-expanded', 'false');
+    const link = document.createElement('a');
+    link.className = 'note-toggle';
+    link.href = url;
+    link.textContent = 'Read note';
 
-    let loaded = false;
-    let loading = false;
-
-    toggle.addEventListener('click', async () => {
-      if (!body.hidden) {
-        body.hidden = true;
-        excerpt.hidden = false;
-        toggle.textContent = 'Read note';
-        toggle.setAttribute('aria-expanded', 'false');
-        history.replaceState(null, '', window.location.pathname);
-        return;
-      }
-
-      if (!loaded && !loading) {
-        loading = true;
-        toggle.disabled = true;
-        toggle.textContent = 'Loading…';
-        try {
-          const response = await fetch(`/api/notes/${encodeURIComponent(note.slug)}`);
-          if (!response.ok) throw new Error('Could not load this note.');
-          const data = await response.json();
-          renderBody(data.note, body);
-          loaded = true;
-        } catch (error) {
-          body.innerHTML = `<p class="notes-inline-error">${escapeHtml(error.message)}</p>`;
-          loaded = true;
-        } finally {
-          loading = false;
-          toggle.disabled = false;
-        }
-      }
-
-      body.hidden = false;
-      excerpt.hidden = true;
-      toggle.textContent = 'Close note';
-      toggle.setAttribute('aria-expanded', 'true');
-      history.replaceState(null, '', `#${encodeURIComponent(note.slug)}`);
-    });
-
-    controls.append(toggle);
-    article.append(header, excerpt, body, controls);
+    controls.append(link);
+    article.append(header, excerpt, controls);
     return article;
   }
 
@@ -161,25 +108,26 @@
       const response = await fetch('/api/notes', { headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error('Could not load notes.');
       const data = await response.json();
-      list.innerHTML = '';
 
       if (!Array.isArray(data.notes) || data.notes.length === 0) {
+        list.innerHTML = '';
         empty.hidden = false;
         return;
       }
 
-      for (const note of data.notes) list.append(makeCard(note));
-
       const requestedSlug = decodeURIComponent(window.location.hash.slice(1));
       if (requestedSlug) {
-        const card = [...list.querySelectorAll('.note-card')].find(item => item.dataset.slug === requestedSlug);
-        if (card) {
-          const button = card.querySelector('.note-toggle');
-          button.click();
-          card.scrollIntoView({ block: 'start' });
+        const requested = data.notes.find(note => note.slug === requestedSlug);
+        if (requested) {
+          window.location.replace(noteUrl(requested));
+          return;
         }
       }
+
+      list.innerHTML = '';
+      for (const note of data.notes) list.append(makeCard(note));
     } catch (error) {
+      list.innerHTML = '';
       errorBox.textContent = error.message;
       errorBox.hidden = false;
     }
