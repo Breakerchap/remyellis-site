@@ -242,13 +242,48 @@ function makeExcerpt(note) {
   return `${sliced.slice(0, lastSpace > 260 ? lastSpace : 360).trim()}…`;
 }
 
+function excerptSource(note) {
+  const lines = String(note.body || '').split(/\r?\n/);
+  const selected = [];
+  let characters = 0;
+
+  for (const line of lines) {
+    if (!line.trim()) {
+      if (selected.length) selected.push('');
+      continue;
+    }
+
+    selected.push(line);
+    characters += line.length;
+    if (selected.filter(item => item.trim()).length >= 4 || characters >= 520) break;
+  }
+
+  return selected.join('\n').trim();
+}
+
+function makeRenderedExcerpt(note) {
+  const source = excerptSource(note);
+  if (!source) return { html: '', css: '' };
+
+  const rendered = renderWikiMd(source);
+  const html = rendered.html.replace(
+    /<h([1-6])([^>]*)>([\s\S]*?)<\/h\1>/gi,
+    '<p class="note-excerpt-heading"><strong>$3</strong></p>'
+  );
+
+  return { html, css: rendered.compilerCss || '' };
+}
+
 function publicSummary(note) {
+  const renderedExcerpt = makeRenderedExcerpt(note);
   return {
     slug: note.slug,
     title: note.title,
     date: note.date,
     format: 'wikimd',
     excerpt: makeExcerpt(note),
+    excerptHtml: renderedExcerpt.html,
+    excerptCss: renderedExcerpt.css,
     publishedAt: note.publishedAt,
     updatedAt: note.updatedAt,
   };
