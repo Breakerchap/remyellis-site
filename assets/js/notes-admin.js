@@ -16,6 +16,7 @@
   const dateInput = document.querySelector('#note-date');
   const slugInput = document.querySelector('#note-slug');
   const bodyInput = document.querySelector('#note-body');
+  const syntaxHighlight = document.querySelector('#note-highlight');
   const cssInput = document.querySelector('#note-css');
   const saveButton = document.querySelector('#save-note');
   const publishButton = document.querySelector('#publish-note');
@@ -55,6 +56,144 @@
       .replaceAll("'", '&#039;');
   }
 
+  function syntaxSpan(className, value) {
+    return `<span class="${className}">${escapeHtml(value)}</span>`;
+  }
+
+  const inlineSyntaxPatterns = [
+    { className: 'wmd-syntax-code', regex: /`[^`\n]*`/g },
+    { className: 'wmd-syntax-math', regex: /\$\$[^$\n]*\$\$/g },
+    { className: 'wmd-syntax-math', regex: /\\\([^\n]*?\\\)/g },
+    { className: 'wmd-syntax-math', regex: /\\\[[^\n]*?\\\]/g },
+    { className: 'wmd-syntax-math', regex: /\$[^$\n]+\$/g },
+    { className: 'wmd-syntax-html', regex: /<\/?[A-Za-z][^>\n]*>/g },
+    { className: 'wmd-syntax-link', regex: /\[\[[^\]\n]+\]\]/g },
+    { className: 'wmd-syntax-link', regex: /\[[^\]\n]+\]\([^\n)]*\)/g },
+    { className: 'wmd-syntax-bold', regex: /\*[^*\n]+\*/g },
+    { className: 'wmd-syntax-italic', regex: /_[^_\n]+_/g },
+  ];
+
+  function highlightInlineWmd(text) {
+    let output = '';
+    let position = 0;
+
+    while (position < text.length) {
+      let chosen = null;
+
+      for (const pattern of inlineSyntaxPatterns) {
+        pattern.regex.lastIndex = position;
+        const match = pattern.regex.exec(text);
+        if (!match) continue;
+        if (!chosen || match.index < chosen.index) {
+          chosen = { index: match.index, value: match[0], className: pattern.className };
+        }
+      }
+
+      if (!chosen) {
+        output += escapeHtml(text.slice(position));
+        break;
+      }
+
+      output += escapeHtml(text.slice(position, chosen.index));
+      output += syntaxSpan(chosen.className, chosen.value);
+      position = chosen.index + chosen.value.length;
+    }
+
+    return output;
+  }
+
+  function highlightWmd(source) {
+    const lines = String(source || '').split('\n');
+    let inFence = false;
+
+    return lines.map(line => {
+      const fence = line.match(/^(\s*)(```)(.*)$/);
+      if (fence) {
+        inFence = !inFence;
+        return escapeHtml(fence[1]) + syntaxSpan('wmd-syntax-code-fence', fence[2] + fence[3]);
+      }
+
+      if (inFence) return syntaxSpan('wmd-syntax-code-block', line);
+
+      const heading = line.match(/^(\s*)(#{1,6})(\s+)(.*)$/);
+      if (heading) {
+        return escapeHtml(heading[1])
+          + syntaxSpan('wmd-syntax-heading-marker', heading[2])
+          + escapeHtml(heading[3])
+          + syntaxSpan('wmd-syntax-heading', heading[4]);
+      }
+
+      const directive = line.match(/^(\s*)((?:@[A-Za-z][\w-]*)|(?:!(?:note|tip|info|warning|danger|rule|example|end)\b))(.*)$/i);
+      if (directive) {
+        return escapeHtml(directive[1])
+          + syntaxSpan('wmd-syntax-directive', directive[2])
+          + `<span class="wmd-syntax-directive-value">${highlightInlineWmd(directive[3])}</span>`;
+      }
+
+      const quote = line.match(/^(\s*>\s?)(.*)$/);
+      if (quote) return `<span class="wmd-syntax-quote">${escapeHtml(quote[1])}${highlightInlineWmd(quote[2])}</span>`;
+
+      const list = line.match(/^(\s*)([-+*]|\d+\.)(\s+)(.*)$/);
+      if (list) {
+        return escapeHtml(list[1])
+          + syntaxSpan('wmd-syntax-list', list[2])
+          + escapeHtml(list[3])
+          + highlightInlineWmd(list[4]);
+      }
+
+      return highlightInlineWmd(line);
+    }).join('\n') + '\n';
+  }
+
+  function updateSyntaxHighlight() {
+    if (!syntaxHighlight) return;
+    syntaxHighlight.innerHTML = highlightWmd(bodyInput.value);
+    syntaxHighlight.scrollTop = bodyInput.scrollTop;
+    syntaxHighlight.scrollLeft = bodyInput.scrollLeft;
+  }
+
+  function handleTabIndent(event) {
+    if (event.key !== 'Tab') return;
+    event.preventDefault();
+
+    const indent = '  ';
+    const value = bodyInput.value;
+    const start = bodyInput.selectionStart;
+    const end = bodyInput.selectionEnd;
+    const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+
+    if (start === end) {
+      if (event.shiftKey) {
+        const prefix = value.slice(lineStart, start);
+        const remove = prefix.endsWith(indent) ? indent.length : (prefix.endsWith(' ') ? 1 : 0);
+        if (remove) {
+          bodyInput.setRangeText('', start - remove, start, 'end');
+        }
+      } else {
+        bodyInput.setRangeText(indent, start, end, 'end');
+      }
+      bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+
+    let effectiveEnd = end;
+    if (effectiveEnd > start && value[effectiveEnd - 1] === '\n') effectiveEnd -= 1;
+    let blockEnd = value.indexOf('\n', effectiveEnd);
+    if (blockEnd === -1) blockEnd = value.length;
+
+    const block = value.slice(lineStart, blockEnd);
+    const lines = block.split('\n');
+    const transformed = lines.map(line => {
+      if (!event.shiftKey) return indent + line;
+      if (line.startsWith(indent)) return line.slice(indent.length);
+      if (line.startsWith(' ')) return line.slice(1);
+      if (line.startsWith('\t')) return line.slice(1);
+      return line;
+    }).join('\n');
+
+    bodyInput.setRangeText(transformed, lineStart, blockEnd, 'select');
+    bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   function sanitiseTrustedHtml(html) {
     const template = document.createElement('template');
     template.innerHTML = html;
@@ -207,6 +346,7 @@
     slugInput.value = '';
     bodyInput.value = '';
     cssInput.value = '';
+    updateSyntaxHighlight();
     savedSnapshot = null;
     editorEmpty.hidden = true;
     editor.hidden = false;
@@ -233,6 +373,7 @@
       slugInput.value = note.slug;
       bodyInput.value = note.body;
       cssInput.value = note.customCss || '';
+      updateSyntaxHighlight();
       savedSnapshot = snapshot();
       editorEmpty.hidden = true;
       editor.hidden = false;
@@ -470,6 +611,14 @@
     input.addEventListener('change', updateSaveState);
   });
 
+  bodyInput.addEventListener('input', updateSyntaxHighlight);
+  bodyInput.addEventListener('scroll', () => {
+    if (!syntaxHighlight) return;
+    syntaxHighlight.scrollTop = bodyInput.scrollTop;
+    syntaxHighlight.scrollLeft = bodyInput.scrollLeft;
+  });
+  bodyInput.addEventListener('keydown', handleTabIndent);
+
   window.addEventListener('beforeunload', event => {
     if (!isDirty()) return;
     event.preventDefault();
@@ -484,6 +633,7 @@
   });
 
   async function initialise() {
+    updateSyntaxHighlight();
     try {
       await api('/api/admin/session');
       showApp();
