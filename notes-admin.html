@@ -104,10 +104,9 @@
             </div>
 
             <div id="editor-pane" class="editor-pane">
-              <div class="wmd-editor-wrap">
-                <div id="note-body" class="note-body-input" contenteditable="plaintext-only" spellcheck="true"
-                  role="textbox" aria-label="Note body" aria-multiline="true" data-placeholder="# Start writing…"></div>
-              </div>
+              <label for="note-body" class="sr-only">Note body</label>
+              <textarea id="note-body" class="note-body-input" spellcheck="true"
+                placeholder="# Start writing…"></textarea>
 
               <details class="custom-css-panel">
                 <summary>Custom CSS / fonts</summary>
