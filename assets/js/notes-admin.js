@@ -533,7 +533,6 @@
   });
 
   async function initialise() {
-    setBodyValue(bodyInput.value);
     try {
       await api('/api/admin/session');
       showApp();
