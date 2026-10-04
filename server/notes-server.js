@@ -16,8 +16,14 @@ const SERVE_STATIC = process.env.NOTES_SERVE_STATIC === '1';
 const SITE_ROOT = path.resolve(__dirname, '..');
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const MAX_LOGIN_ATTEMPTS = 8;
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const MAX_LOGIN_FAILURES_PER_IP = 5;
+const LOGIN_IP_BLOCK_MS = 30 * 60 * 1000;
+const GLOBAL_LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const GLOBAL_FAILURE_THRESHOLD = 25;
+const GLOBAL_SLOW_MODE_MS = 15 * 60 * 1000;
+const GLOBAL_MIN_ATTEMPT_INTERVAL_MS = 10 * 1000;
+const LOGIN_FAILURE_DELAYS_MS = [1000, 2000, 5000, 10000];
 const COOKIE_NAME = 'remy_notes_session';
 
 if (!ADMIN_PASSWORD) {
@@ -32,6 +38,9 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
 
 const sessions = new Map();
 const loginAttempts = new Map();
+const globalLoginFailures = [];
+let globalSlowModeUntil = 0;
+let nextGlobalLoginAttemptAt = 0;
 
 function nowIso() {
   return new Date().toISOString();
@@ -188,19 +197,85 @@ function constantTimePasswordMatch(candidate) {
 }
 
 function clientIp(req) {
+  const cloudflareIp = req.headers['cf-connecting-ip'];
+  if (typeof cloudflareIp === 'string' && cloudflareIp.trim()) return cloudflareIp.trim();
+
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
+
   return req.socket.remoteAddress || 'unknown';
 }
 
-function loginRateState(ip) {
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function pruneGlobalLoginFailures(now = Date.now()) {
+  const cutoff = now - GLOBAL_LOGIN_WINDOW_MS;
+  while (globalLoginFailures.length && globalLoginFailures[0] < cutoff) {
+    globalLoginFailures.shift();
+  }
+}
+
+function recordGlobalLoginFailure(now = Date.now()) {
+  pruneGlobalLoginFailures(now);
+  globalLoginFailures.push(now);
+
+  if (globalLoginFailures.length >= GLOBAL_FAILURE_THRESHOLD) {
+    globalSlowModeUntil = Math.max(globalSlowModeUntil, now + GLOBAL_SLOW_MODE_MS);
+  }
+}
+
+function globalLoginRetryAfter(now = Date.now()) {
+  pruneGlobalLoginFailures(now);
+
+  if (globalSlowModeUntil <= now) {
+    globalSlowModeUntil = 0;
+    nextGlobalLoginAttemptAt = 0;
+    return 0;
+  }
+
+  if (nextGlobalLoginAttemptAt > now) {
+    return Math.ceil((nextGlobalLoginAttemptAt - now) / 1000);
+  }
+
+  nextGlobalLoginAttemptAt = now + GLOBAL_MIN_ATTEMPT_INTERVAL_MS;
+  return 0;
+}
+
+function loginRateState(ip, now = Date.now()) {
   const existing = loginAttempts.get(ip);
-  if (!existing || existing.resetAt <= Date.now()) {
-    const fresh = { count: 0, resetAt: Date.now() + LOGIN_WINDOW_MS };
+
+  if (!existing) {
+    const fresh = {
+      failures: 0,
+      windowStartedAt: now,
+      blockedUntil: 0,
+    };
     loginAttempts.set(ip, fresh);
     return fresh;
   }
+
+  if (existing.blockedUntil > now) return existing;
+
+  if (existing.blockedUntil && existing.blockedUntil <= now) {
+    existing.failures = 0;
+    existing.windowStartedAt = now;
+    existing.blockedUntil = 0;
+    return existing;
+  }
+
+  if (existing.windowStartedAt + LOGIN_WINDOW_MS <= now) {
+    existing.failures = 0;
+    existing.windowStartedAt = now;
+  }
+
   return existing;
+}
+
+function failureDelayMs(failures) {
+  const index = Math.min(Math.max(failures, 1), LOGIN_FAILURE_DELAYS_MS.length) - 1;
+  return LOGIN_FAILURE_DELAYS_MS[index];
 }
 
 function slugify(value) {
@@ -466,11 +541,21 @@ async function handle(req, res) {
   if (req.method === 'POST' && pathname === '/api/admin/login') {
     if (!sameOrigin(req)) return sendJson(res, 403, { error: 'Origin rejected.' }, { 'Cache-Control': 'no-store' });
 
+    const now = Date.now();
+    const globalRetryAfter = globalLoginRetryAfter(now);
+    if (globalRetryAfter > 0) {
+      return sendJson(res, 429, { error: 'Login attempts are temporarily being slowed. Try again shortly.' }, {
+        'Cache-Control': 'no-store',
+        'Retry-After': String(globalRetryAfter),
+      });
+    }
+
     const ip = clientIp(req);
-    const rate = loginRateState(ip);
-    if (rate.count >= MAX_LOGIN_ATTEMPTS) {
-      const retryAfter = Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000));
-      return sendJson(res, 429, { error: 'Too many login attempts. Try again later.' }, {
+    const rate = loginRateState(ip, now);
+
+    if (rate.blockedUntil > now) {
+      const retryAfter = Math.max(1, Math.ceil((rate.blockedUntil - now) / 1000));
+      return sendJson(res, 429, { error: 'Too many failed login attempts. Try again later.' }, {
         'Cache-Control': 'no-store',
         'Retry-After': String(retryAfter),
       });
@@ -478,7 +563,23 @@ async function handle(req, res) {
 
     const body = await readJsonBody(req);
     if (!constantTimePasswordMatch(body.password)) {
-      rate.count += 1;
+      rate.failures += 1;
+      recordGlobalLoginFailure();
+
+      if (rate.failures >= MAX_LOGIN_FAILURES_PER_IP) {
+        rate.blockedUntil = Date.now() + LOGIN_IP_BLOCK_MS;
+      }
+
+      await sleep(failureDelayMs(rate.failures));
+
+      if (rate.blockedUntil > Date.now()) {
+        const retryAfter = Math.max(1, Math.ceil((rate.blockedUntil - Date.now()) / 1000));
+        return sendJson(res, 429, { error: 'Too many failed login attempts. Try again later.' }, {
+          'Cache-Control': 'no-store',
+          'Retry-After': String(retryAfter),
+        });
+      }
+
       return sendJson(res, 401, { error: 'Incorrect password.' }, { 'Cache-Control': 'no-store' });
     }
 
@@ -647,7 +748,15 @@ const cleanupTimer = setInterval(() => {
     if (session.expiresAt <= now) sessions.delete(token);
   }
   for (const [ip, state] of loginAttempts.entries()) {
-    if (state.resetAt <= now) loginAttempts.delete(ip);
+    const windowExpired = state.windowStartedAt + LOGIN_WINDOW_MS <= now;
+    const blockExpired = !state.blockedUntil || state.blockedUntil <= now;
+    if (windowExpired && blockExpired) loginAttempts.delete(ip);
+  }
+
+  pruneGlobalLoginFailures(now);
+  if (globalSlowModeUntil <= now) {
+    globalSlowModeUntil = 0;
+    nextGlobalLoginAttemptAt = 0;
   }
 }, 60 * 60 * 1000);
 cleanupTimer.unref();
