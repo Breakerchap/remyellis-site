@@ -93,9 +93,11 @@
       <h2>${escapeHtml(note.title)}</h2>
     `;
 
-    const excerpt = document.createElement('p');
-    excerpt.className = 'note-excerpt';
-    excerpt.textContent = note.excerpt || '';
+    const excerpt = document.createElement('div');
+    excerpt.className = 'note-excerpt note-body';
+    excerpt.innerHTML = sanitiseTrustedHtml(note.excerptHtml || escapeHtml(note.excerpt || ''));
+    addStyle(excerpt, note.excerptCss || '', `${note.slug}-excerpt`);
+    renderMath(excerpt);
 
     const body = document.createElement('div');
     body.className = 'note-body';
