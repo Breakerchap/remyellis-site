@@ -351,15 +351,158 @@
 }
 
 .note-body-input {
+  /* Keep the writing surface deliberately boring and browser-native.
+     Explicit text metrics avoid caret/text drift caused by inherited
+     typography from the public site. */
+  background: #ffffff !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 0.25rem !important;
+  box-shadow: none !important;
   box-sizing: border-box;
+  caret-color: #111827;
+  color: #111827 !important;
   display: block;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace !important;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  min-height: 52vh;
-  padding: 1rem !important;
+  font-family: Consolas, "Liberation Mono", "Courier New", monospace !important;
+  font-feature-settings: normal;
+  font-kerning: none;
+  font-size: 16px !important;
+  font-variant-ligatures: none;
+  font-weight: 400;
+  height: clamp(28rem, 62vh, 52rem);
+  letter-spacing: 0 !important;
+  line-height: 1.5 !important;
+  overflow: auto;
+  overflow-wrap: normal;
+  padding: 0.9rem 1rem !important;
   resize: vertical;
+  tab-size: 2;
+  text-align: left;
+  text-indent: 0;
+  text-rendering: auto;
+  text-transform: none;
+  white-space: pre-wrap;
   width: 100%;
+  word-break: normal;
+}
+
+.note-body-input:focus {
+  border-color: #6b8793 !important;
+  box-shadow: 0 0 0 1px #6b8793 !important;
+  outline: none;
+}
+
+.note-body-input::selection {
+  background: #cfe8f1;
+}
+
+
+/* WikiMD editing surface. CodeMirror renders both text and caret, so syntax
+   colour does not bring back the old overlay/caret drift problem. */
+.CodeMirror.note-body-editor {
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.25rem;
+  color: #111827;
+  font-family: Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 16px;
+  font-variant-ligatures: none;
+  font-weight: 400;
+  height: clamp(28rem, 62vh, 52rem);
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
+.CodeMirror.note-body-editor.CodeMirror-focused {
+  border-color: #6b8793;
+  box-shadow: 0 0 0 1px #6b8793;
+}
+
+.note-body-editor .CodeMirror-lines {
+  padding: 0.9rem 0;
+}
+
+.note-body-editor pre.CodeMirror-line,
+.note-body-editor pre.CodeMirror-line-like {
+  font: inherit;
+  line-height: inherit;
+  padding: 0 1rem;
+}
+
+.note-body-editor .CodeMirror-cursor {
+  border-left-color: #111827;
+}
+
+.note-body-editor .CodeMirror-selected,
+.note-body-editor.CodeMirror-focused .CodeMirror-selected {
+  background: #cfe8f1;
+}
+
+/* WikiMD syntax colours. */
+.cm-wmd-bold {
+  color: #0451a5;
+  font-weight: 700;
+}
+
+.cm-wmd-italic {
+  color: #c2185b;
+  font-style: italic;
+}
+
+.cm-wmd-link,
+.cm-wmd-wikilink {
+  color: #0b6a0b;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.cm-wmd-heading {
+  color: #0000ff;
+  font-weight: 700;
+}
+
+.cm-wmd-directive {
+  color: #af00db;
+  font-weight: 700;
+}
+
+.cm-wmd-variable,
+.cm-wmd-list {
+  color: #795e26;
+}
+
+.cm-wmd-code,
+.cm-wmd-code-fence {
+  color: #a31515;
+}
+
+.cm-wmd-quote {
+  color: #008000;
+  font-style: italic;
+}
+
+.cm-wmd-highlight-yellow {
+  background: #fff7a8;
+  color: #6b5e00;
+}
+
+.cm-wmd-highlight-orange {
+  background: #ffd7a1;
+  color: #7a3e00;
+}
+
+.cm-wmd-highlight-red {
+  background: #ffb3b3;
+  color: #7a0000;
+}
+
+.cm-wmd-math {
+  color: #7a3e9d;
+}
+
+.cm-wmd-comment {
+  color: #6a737d;
+  font-style: italic;
 }
 
 .custom-css-panel {

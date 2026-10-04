@@ -36,6 +36,7 @@
   let savedSnapshot = null;
   let slugWasEdited = false;
   let busy = false;
+  let bodyEditor = null;
 
   function slugify(value) {
     return String(value || '')
@@ -53,6 +54,66 @@
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#039;');
+  }
+
+  function getBodyValue() {
+    return bodyEditor ? bodyEditor.getValue() : bodyInput.value;
+  }
+
+  function setBodyValue(value) {
+    const nextValue = String(value ?? '');
+    bodyInput.value = nextValue;
+
+    if (bodyEditor && bodyEditor.getValue() !== nextValue) {
+      bodyEditor.setValue(nextValue);
+      bodyEditor.clearHistory();
+    }
+  }
+
+  function refreshBodyEditor() {
+    if (!bodyEditor) return;
+    requestAnimationFrame(() => bodyEditor.refresh());
+  }
+
+  function ensureBodyEditor() {
+    if (bodyEditor || !window.CodeMirror) return bodyEditor;
+
+    bodyEditor = window.CodeMirror.fromTextArea(bodyInput, {
+      mode: 'wikimd',
+      lineNumbers: false,
+      lineWrapping: true,
+      indentUnit: 2,
+      tabSize: 2,
+      indentWithTabs: false,
+      viewportMargin: 20,
+      cursorBlinkRate: 530,
+      extraKeys: {
+        Tab(cm) {
+          if (cm.somethingSelected()) {
+            cm.indentSelection('add');
+          } else {
+            cm.replaceSelection('  ', 'end');
+          }
+        },
+        'Shift-Tab'(cm) {
+          cm.indentSelection('subtract');
+        },
+        'Ctrl-S'() {
+          saveCurrent();
+        },
+        'Cmd-S'() {
+          saveCurrent();
+        },
+      },
+    });
+
+    bodyEditor.getWrapperElement().classList.add('note-body-editor');
+    bodyEditor.on('change', cm => {
+      bodyInput.value = cm.getValue();
+      updateSaveState();
+    });
+
+    return bodyEditor;
   }
 
   function handleTabIndent(event) {
@@ -206,7 +267,7 @@
       date: dateInput.value,
       slug: slugInput.value.trim(),
       format: 'wikimd',
-      body: bodyInput.value,
+      body: getBodyValue(),
       customCss: cssInput.value,
     };
   }
@@ -252,11 +313,13 @@
     titleInput.value = '';
     dateInput.value = localToday();
     slugInput.value = '';
-    bodyInput.value = '';
+    setBodyValue('');
     cssInput.value = '';
     savedSnapshot = null;
     editorEmpty.hidden = true;
     editor.hidden = false;
+    ensureBodyEditor();
+    refreshBodyEditor();
     updateStatus();
     updateSaveState();
     preview.innerHTML = '';
@@ -278,11 +341,13 @@
       titleInput.value = note.title;
       dateInput.value = note.date;
       slugInput.value = note.slug;
-      bodyInput.value = note.body;
+      setBodyValue(note.body);
       cssInput.value = note.customCss || '';
       savedSnapshot = snapshot();
       editorEmpty.hidden = true;
       editor.hidden = false;
+      ensureBodyEditor();
+      refreshBodyEditor();
       updateStatus();
       updateSaveState();
       preview.innerHTML = '';
@@ -348,7 +413,7 @@
     try {
       const data = await api('/api/admin/render', {
         method: 'POST',
-        body: JSON.stringify({ body: bodyInput.value }),
+        body: JSON.stringify({ body: getBodyValue() }),
       });
       renderCompiled(preview, data.rendered || {}, cssInput.value);
     } catch (error) {
@@ -458,6 +523,8 @@
     previewPane.hidden = true;
     writeButton.classList.add('is-active');
     previewButton.classList.remove('is-active');
+    ensureBodyEditor();
+    refreshBodyEditor();
   }
 
   async function showPreviewPane() {
@@ -533,7 +600,6 @@
   });
 
   async function initialise() {
-    setBodyValue(bodyInput.value);
     try {
       await api('/api/admin/session');
       showApp();
