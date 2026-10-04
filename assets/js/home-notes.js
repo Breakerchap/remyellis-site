@@ -26,7 +26,12 @@
       if (!response.ok) return;
 
       const data = await response.json();
-      const latest = Array.isArray(data.notes) ? data.notes[0] : null;
+      const available = Array.isArray(data.notes) ? data.notes : [];
+      const latest = [...available].sort((a, b) => {
+        const byDate = String(b.date || '').localeCompare(String(a.date || ''));
+        if (byDate !== 0) return byDate;
+        return String(b.publishedAt || '').localeCompare(String(a.publishedAt || ''));
+      })[0] || null;
       if (!latest) return;
 
       dateEl.textContent = formatDate(latest.date);
