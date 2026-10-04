@@ -350,13 +350,123 @@
   padding-top: 1.25rem;
 }
 
+.wmd-editor-wrap {
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.35rem;
+  min-height: 52vh;
+  position: relative;
+}
+
+.wmd-highlight,
 .note-body-input {
+  box-sizing: border-box;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace !important;
   font-size: 0.9rem;
+  font-variant-ligatures: none;
   line-height: 1.65;
+  margin: 0;
   min-height: 52vh;
   padding: 1rem !important;
+  tab-size: 4;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.wmd-highlight {
+  border: 0;
+  color: #344f5e;
+  inset: 0;
+  overflow: auto;
+  pointer-events: none;
+  position: absolute;
+  scrollbar-width: none;
+  z-index: 1;
+}
+
+.wmd-highlight::-webkit-scrollbar {
+  display: none;
+}
+
+.note-body-input {
+  background: transparent !important;
+  border: 0 !important;
+  caret-color: #123d57;
+  color: transparent !important;
+  display: block;
+  overflow: auto;
+  position: relative;
   resize: vertical;
+  -webkit-text-fill-color: transparent;
+  width: 100%;
+  z-index: 2;
+}
+
+.note-body-input:focus {
+  box-shadow: none !important;
+  outline: 0;
+}
+
+.wmd-editor-wrap:focus-within {
+  border-color: rgba(15, 157, 146, 0.62);
+  box-shadow: 0 0 0 1px rgba(15, 157, 146, 0.18);
+}
+
+.note-body-input::placeholder {
+  color: #8ba2ab;
+  -webkit-text-fill-color: #8ba2ab;
+}
+
+.note-body-input::selection {
+  background: rgba(21, 125, 168, 0.20);
+}
+
+.wmd-syntax-heading,
+.wmd-syntax-heading-marker,
+.wmd-syntax-bold {
+  color: #0000c8;
+  font-weight: 700;
+}
+
+.wmd-syntax-italic {
+  color: #b21d73;
+  font-style: italic;
+}
+
+.wmd-syntax-directive {
+  color: #af00db;
+  font-weight: 700;
+}
+
+.wmd-syntax-directive-value {
+  color: #795e26;
+}
+
+.wmd-syntax-link {
+  color: #0b6a0b;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.wmd-syntax-code,
+.wmd-syntax-code-block,
+.wmd-syntax-code-fence,
+.wmd-syntax-html {
+  color: #a31515;
+}
+
+.wmd-syntax-math {
+  color: #007f6e;
+}
+
+.wmd-syntax-list {
+  color: #795e26;
+  font-weight: 700;
+}
+
+.wmd-syntax-quote {
+  color: #008000;
+  font-style: italic;
 }
 
 .custom-css-panel {
