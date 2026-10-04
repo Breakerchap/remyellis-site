@@ -16,7 +16,6 @@
   const dateInput = document.querySelector('#note-date');
   const slugInput = document.querySelector('#note-slug');
   const bodyInput = document.querySelector('#note-body');
-  const syntaxHighlight = document.querySelector('#note-highlight');
   const cssInput = document.querySelector('#note-css');
   const saveButton = document.querySelector('#save-note');
   const publishButton = document.querySelector('#publish-note');
@@ -145,18 +144,87 @@
     }).join('\n') + '\n';
   }
 
-  function syncSyntaxGeometry() {
-    if (!syntaxHighlight) return;
-    syntaxHighlight.style.width = `${bodyInput.clientWidth}px`;
-    syntaxHighlight.style.height = `${bodyInput.clientHeight}px`;
-    syntaxHighlight.scrollTop = bodyInput.scrollTop;
-    syntaxHighlight.scrollLeft = bodyInput.scrollLeft;
+  function getBodyValue() {
+    return bodyInput.textContent || '';
+  }
+
+  function selectionOffsets() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+
+    const range = selection.getRangeAt(0);
+    if (!bodyInput.contains(range.startContainer) || !bodyInput.contains(range.endContainer)) return null;
+
+    const beforeStart = document.createRange();
+    beforeStart.selectNodeContents(bodyInput);
+    beforeStart.setEnd(range.startContainer, range.startOffset);
+
+    const beforeEnd = document.createRange();
+    beforeEnd.selectNodeContents(bodyInput);
+    beforeEnd.setEnd(range.endContainer, range.endOffset);
+
+    return {
+      start: beforeStart.toString().length,
+      end: beforeEnd.toString().length,
+    };
+  }
+
+  function pointAtOffset(offset) {
+    const walker = document.createTreeWalker(bodyInput, NodeFilter.SHOW_TEXT);
+    let remaining = Math.max(0, offset);
+    let node = walker.nextNode();
+    let lastNode = null;
+
+    while (node) {
+      lastNode = node;
+      const length = node.nodeValue.length;
+      if (remaining <= length) return { node, offset: remaining };
+      remaining -= length;
+      node = walker.nextNode();
+    }
+
+    if (lastNode) return { node: lastNode, offset: lastNode.nodeValue.length };
+
+    const text = document.createTextNode('');
+    bodyInput.append(text);
+    return { node: text, offset: 0 };
+  }
+
+  function setSelectionOffsets(start, end = start) {
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const startPoint = pointAtOffset(start);
+    const endPoint = pointAtOffset(end);
+    const range = document.createRange();
+    range.setStart(startPoint.node, startPoint.offset);
+    range.setEnd(endPoint.node, endPoint.offset);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function renderEditorSyntax(source, selection = null) {
+    bodyInput.innerHTML = highlightWmd(source);
+    if (selection) setSelectionOffsets(selection.start, selection.end);
+  }
+
+  function setBodyValue(value) {
+    renderEditorSyntax(String(value || ''));
   }
 
   function updateSyntaxHighlight() {
-    if (!syntaxHighlight) return;
-    syntaxHighlight.innerHTML = highlightWmd(bodyInput.value);
-    syncSyntaxGeometry();
+    const selection = selectionOffsets();
+    const source = getBodyValue();
+    renderEditorSyntax(source, selection);
+  }
+
+  function replaceEditorSelection(text) {
+    const source = getBodyValue();
+    const selection = selectionOffsets() || { start: source.length, end: source.length };
+    const next = source.slice(0, selection.start) + text + source.slice(selection.end);
+    const caret = selection.start + text.length;
+    renderEditorSyntax(next, { start: caret, end: caret });
+    updateSaveState();
   }
 
   function handleTabIndent(event) {
@@ -164,36 +232,39 @@
     event.preventDefault();
 
     const indent = '  ';
-    const value = bodyInput.value;
-    const start = bodyInput.selectionStart;
-    const end = bodyInput.selectionEnd;
+    const value = getBodyValue();
+    const selection = selectionOffsets() || { start: value.length, end: value.length };
+    const start = selection.start;
+    const end = selection.end;
     const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
 
     if (start === end) {
-      if (event.shiftKey) {
+      if (!event.shiftKey) {
+        const next = value.slice(0, start) + indent + value.slice(end);
+        const caret = start + indent.length;
+        renderEditorSyntax(next, { start: caret, end: caret });
+      } else {
         const line = value.slice(lineStart);
-        const match = line.match(/^(  | |	)/);
+        const match = line.match(/^(  | |\t)/);
         if (match) {
           const remove = match[0].length;
-          bodyInput.setRangeText('', lineStart, lineStart + remove, 'end');
-          const nextCaret = Math.max(lineStart, start - remove);
-          bodyInput.setSelectionRange(nextCaret, nextCaret);
+          const next = value.slice(0, lineStart) + value.slice(lineStart + remove);
+          const caret = Math.max(lineStart, start - remove);
+          renderEditorSyntax(next, { start: caret, end: caret });
         }
-      } else {
-        bodyInput.setRangeText(indent, start, end, 'end');
       }
-      bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
+      updateSaveState();
       return;
     }
 
     let effectiveEnd = end;
     if (effectiveEnd > start && value[effectiveEnd - 1] === '\n') effectiveEnd -= 1;
+
     let blockEnd = value.indexOf('\n', effectiveEnd);
     if (blockEnd === -1) blockEnd = value.length;
 
     const block = value.slice(lineStart, blockEnd);
-    const lines = block.split('\n');
-    const transformed = lines.map(line => {
+    const transformed = block.split('\n').map(line => {
       if (!event.shiftKey) return indent + line;
       if (line.startsWith(indent)) return line.slice(indent.length);
       if (line.startsWith(' ')) return line.slice(1);
@@ -201,9 +272,14 @@
       return line;
     }).join('\n');
 
-    bodyInput.setRangeText(transformed, lineStart, blockEnd, 'select');
-    bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
+    const next = value.slice(0, lineStart) + transformed + value.slice(blockEnd);
+    renderEditorSyntax(next, {
+      start: lineStart,
+      end: lineStart + transformed.length,
+    });
+    updateSaveState();
   }
+
   function sanitiseTrustedHtml(html) {
     const template = document.createElement('template');
     template.innerHTML = html;
@@ -308,7 +384,7 @@
       date: dateInput.value,
       slug: slugInput.value.trim(),
       format: 'wikimd',
-      body: bodyInput.value,
+      body: getBodyValue(),
       customCss: cssInput.value,
     };
   }
@@ -354,9 +430,8 @@
     titleInput.value = '';
     dateInput.value = localToday();
     slugInput.value = '';
-    bodyInput.value = '';
+    setBodyValue('');
     cssInput.value = '';
-    updateSyntaxHighlight();
     savedSnapshot = null;
     editorEmpty.hidden = true;
     editor.hidden = false;
@@ -381,9 +456,8 @@
       titleInput.value = note.title;
       dateInput.value = note.date;
       slugInput.value = note.slug;
-      bodyInput.value = note.body;
+      setBodyValue(note.body);
       cssInput.value = note.customCss || '';
-      updateSyntaxHighlight();
       savedSnapshot = snapshot();
       editorEmpty.hidden = true;
       editor.hidden = false;
@@ -452,7 +526,7 @@
     try {
       const data = await api('/api/admin/render', {
         method: 'POST',
-        body: JSON.stringify({ body: bodyInput.value }),
+        body: JSON.stringify({ body: getBodyValue() }),
       });
       renderCompiled(preview, data.rendered || {}, cssInput.value);
     } catch (error) {
@@ -616,21 +690,43 @@
     slugWasEdited = true;
     updateSaveState();
   });
-  [dateInput, bodyInput, cssInput].forEach(input => {
+  [dateInput, cssInput].forEach(input => {
     input.addEventListener('input', updateSaveState);
     input.addEventListener('change', updateSaveState);
   });
 
-  bodyInput.addEventListener('input', updateSyntaxHighlight);
-  bodyInput.addEventListener('scroll', syncSyntaxGeometry);
-  bodyInput.addEventListener('keydown', handleTabIndent);
+  let composing = false;
 
-  if ('ResizeObserver' in window) {
-    const editorResizeObserver = new ResizeObserver(syncSyntaxGeometry);
-    editorResizeObserver.observe(bodyInput);
-  } else {
-    window.addEventListener('resize', syncSyntaxGeometry);
-  }
+  bodyInput.addEventListener('compositionstart', () => {
+    composing = true;
+  });
+
+  bodyInput.addEventListener('compositionend', () => {
+    composing = false;
+    updateSyntaxHighlight();
+    updateSaveState();
+  });
+
+  bodyInput.addEventListener('input', () => {
+    if (!composing) updateSyntaxHighlight();
+    updateSaveState();
+  });
+
+  bodyInput.addEventListener('beforeinput', event => {
+    if (event.inputType !== 'insertParagraph' && event.inputType !== 'insertLineBreak') return;
+    event.preventDefault();
+    replaceEditorSelection('\n');
+  });
+
+  bodyInput.addEventListener('paste', event => {
+    event.preventDefault();
+    const text = (event.clipboardData || window.clipboardData)
+      .getData('text')
+      .replace(/\r\n?/g, '\n');
+    replaceEditorSelection(text);
+  });
+
+  bodyInput.addEventListener('keydown', handleTabIndent);
 
   window.addEventListener('beforeunload', event => {
     if (!isDirty()) return;
@@ -646,7 +742,7 @@
   });
 
   async function initialise() {
-    updateSyntaxHighlight();
+    setBodyValue(getBodyValue());
     try {
       await api('/api/admin/session');
       showApp();
