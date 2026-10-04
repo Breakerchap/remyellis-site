@@ -364,28 +364,27 @@
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace !important;
   font-size: 0.9rem;
   font-variant-ligatures: none;
+  font-weight: 400;
+  letter-spacing: 0;
   line-height: 1.65;
   margin: 0;
   min-height: 52vh;
   padding: 1rem !important;
   tab-size: 4;
   white-space: pre-wrap;
+  word-spacing: 0;
   overflow-wrap: break-word;
 }
 
 .wmd-highlight {
   border: 0;
   color: #344f5e;
-  inset: 0;
-  overflow: auto;
+  left: 0;
+  overflow: hidden;
   pointer-events: none;
   position: absolute;
-  scrollbar-width: none;
+  top: 0;
   z-index: 1;
-}
-
-.wmd-highlight::-webkit-scrollbar {
-  display: none;
 }
 
 .note-body-input {
