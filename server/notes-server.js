@@ -22,7 +22,7 @@ const LOGIN_IP_BLOCK_MS = 30 * 60 * 1000;
 const GLOBAL_LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const GLOBAL_FAILURE_THRESHOLD = 25;
 const GLOBAL_SLOW_MODE_MS = 15 * 60 * 1000;
-const GLOBAL_MIN_ATTEMPT_INTERVAL_MS = 10 * 1000;
+const GLOBAL_FAILURE_DELAY_MS = 10 * 1000;
 const LOGIN_FAILURE_DELAYS_MS = [1000, 2000, 5000, 10000];
 const COOKIE_NAME = 'remy_notes_session';
 
@@ -40,7 +40,6 @@ const sessions = new Map();
 const loginAttempts = new Map();
 const globalLoginFailures = [];
 let globalSlowModeUntil = 0;
-let nextGlobalLoginAttemptAt = 0;
 
 function nowIso() {
   return new Date().toISOString();
@@ -226,21 +225,13 @@ function recordGlobalLoginFailure(now = Date.now()) {
   }
 }
 
-function globalLoginRetryAfter(now = Date.now()) {
+function globalSlowModeActive(now = Date.now()) {
   pruneGlobalLoginFailures(now);
-
   if (globalSlowModeUntil <= now) {
     globalSlowModeUntil = 0;
-    nextGlobalLoginAttemptAt = 0;
-    return 0;
+    return false;
   }
-
-  if (nextGlobalLoginAttemptAt > now) {
-    return Math.ceil((nextGlobalLoginAttemptAt - now) / 1000);
-  }
-
-  nextGlobalLoginAttemptAt = now + GLOBAL_MIN_ATTEMPT_INTERVAL_MS;
-  return 0;
+  return true;
 }
 
 function loginRateState(ip, now = Date.now()) {
@@ -542,14 +533,7 @@ async function handle(req, res) {
     if (!sameOrigin(req)) return sendJson(res, 403, { error: 'Origin rejected.' }, { 'Cache-Control': 'no-store' });
 
     const now = Date.now();
-    const globalRetryAfter = globalLoginRetryAfter(now);
-    if (globalRetryAfter > 0) {
-      return sendJson(res, 429, { error: 'Login attempts are temporarily being slowed. Try again shortly.' }, {
-        'Cache-Control': 'no-store',
-        'Retry-After': String(globalRetryAfter),
-      });
-    }
-
+    const globalSlow = globalSlowModeActive(now);
     const ip = clientIp(req);
     const rate = loginRateState(ip, now);
 
@@ -570,7 +554,10 @@ async function handle(req, res) {
         rate.blockedUntil = Date.now() + LOGIN_IP_BLOCK_MS;
       }
 
-      await sleep(failureDelayMs(rate.failures));
+      const delay = globalSlowModeActive()
+        ? Math.max(failureDelayMs(rate.failures), GLOBAL_FAILURE_DELAY_MS)
+        : failureDelayMs(rate.failures);
+      await sleep(delay);
 
       if (rate.blockedUntil > Date.now()) {
         const retryAfter = Math.max(1, Math.ceil((rate.blockedUntil - Date.now()) / 1000));
@@ -756,7 +743,6 @@ const cleanupTimer = setInterval(() => {
   pruneGlobalLoginFailures(now);
   if (globalSlowModeUntil <= now) {
     globalSlowModeUntil = 0;
-    nextGlobalLoginAttemptAt = 0;
   }
 }, 60 * 60 * 1000);
 cleanupTimer.unref();
