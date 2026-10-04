@@ -141,7 +141,7 @@
       }
 
       return highlightInlineWmd(line);
-    }).join('\n') + '\n';
+    }).join('\n');
   }
 
   function getBodyValue() {
