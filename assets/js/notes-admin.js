@@ -37,6 +37,7 @@
   let slugWasEdited = false;
   let busy = false;
   let bodyEditor = null;
+  let reordering = false;
 
   function slugify(value) {
     return String(value || '')
@@ -359,9 +360,35 @@
   }
 
   function highlightCurrent() {
-    noteList.querySelectorAll('[data-note-id]').forEach(button => {
-      button.classList.toggle('is-current', button.dataset.noteId === currentId);
+    noteList.querySelectorAll('[data-note-id]').forEach(item => {
+      item.classList.toggle('is-current', item.dataset.noteId === currentId);
     });
+  }
+
+  async function movePublishedNote(id, direction) {
+    if (reordering || busy) return;
+
+    const published = notes.filter(note => note.status === 'published');
+    const index = published.findIndex(note => note.id === id);
+    const targetIndex = index + direction;
+    if (index === -1 || targetIndex < 0 || targetIndex >= published.length) return;
+
+    const reordered = [...published];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+
+    reordering = true;
+    showError('');
+    try {
+      await api('/api/admin/notes/order', {
+        method: 'PATCH',
+        body: JSON.stringify({ ids: reordered.map(note => note.id) }),
+      });
+      await refreshList();
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      reordering = false;
+    }
   }
 
   function renderNoteList() {
@@ -383,18 +410,50 @@
       heading.textContent = label;
       noteList.append(heading);
 
-      for (const note of items) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'admin-note-item';
-        button.dataset.noteId = note.id;
-        button.innerHTML = `
+      items.forEach((note, index) => {
+        const row = document.createElement('div');
+        row.className = 'admin-note-item';
+        row.dataset.noteId = note.id;
+
+        const openButton = document.createElement('button');
+        openButton.type = 'button';
+        openButton.className = 'admin-note-open';
+        openButton.innerHTML = `
           <span>${escapeHtml(note.title)}</span>
           <small>${escapeHtml(note.date)} · ${note.status === 'published' ? 'Published' : 'Draft'}</small>
         `;
-        button.addEventListener('click', () => openNote(note.id));
-        noteList.append(button);
-      }
+        openButton.addEventListener('click', () => openNote(note.id));
+        row.append(openButton);
+
+        if (note.status === 'published') {
+          const controls = document.createElement('div');
+          controls.className = 'admin-order-controls';
+          controls.setAttribute('aria-label', `Change order of ${note.title}`);
+
+          const up = document.createElement('button');
+          up.type = 'button';
+          up.className = 'admin-order-button';
+          up.textContent = '↑';
+          up.title = 'Move up';
+          up.setAttribute('aria-label', `Move ${note.title} up`);
+          up.disabled = index === 0;
+          up.addEventListener('click', () => movePublishedNote(note.id, -1));
+
+          const down = document.createElement('button');
+          down.type = 'button';
+          down.className = 'admin-order-button';
+          down.textContent = '↓';
+          down.title = 'Move down';
+          down.setAttribute('aria-label', `Move ${note.title} down`);
+          down.disabled = index === items.length - 1;
+          down.addEventListener('click', () => movePublishedNote(note.id, 1));
+
+          controls.append(up, down);
+          row.append(controls);
+        }
+
+        noteList.append(row);
+      });
     }
 
     highlightCurrent();
