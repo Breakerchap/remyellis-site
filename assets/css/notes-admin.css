@@ -165,21 +165,12 @@
 }
 
 .admin-note-item {
+  align-items: center;
   background: transparent;
-  border: 0;
   border-radius: 0.35rem;
-  box-shadow: none;
-  color: var(--ink) !important;
-  cursor: pointer;
-  display: block;
-  font: inherit;
-  height: auto;
-  letter-spacing: normal;
-  line-height: 1.4;
+  display: flex;
+  gap: 0.35rem;
   margin: 0 -0.55rem;
-  padding: 0.7rem 0.55rem;
-  text-align: left;
-  text-transform: none;
   width: calc(100% + 1.1rem);
 }
 
@@ -188,21 +179,78 @@
   background: rgba(15, 157, 146, 0.08);
 }
 
-.admin-note-item span,
-.admin-note-item small {
+.admin-note-open {
+  background: transparent;
+  border: 0;
+  border-radius: 0.35rem;
+  box-shadow: none;
+  color: var(--ink) !important;
+  cursor: pointer;
+  flex: 1 1 auto;
+  font: inherit;
+  height: auto;
+  letter-spacing: normal;
+  line-height: 1.4;
+  min-width: 0;
+  padding: 0.7rem 0.55rem;
+  text-align: left;
+  text-transform: none;
+}
+
+.admin-note-open span,
+.admin-note-open small {
   display: block;
 }
 
-.admin-note-item span {
+.admin-note-open span {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 0.98rem;
   font-weight: 600;
   margin-bottom: 0.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.admin-note-item small {
+.admin-note-open small {
   color: var(--muted-soft);
   font-size: 0.64rem;
+}
+
+.admin-order-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.15rem;
+  padding-right: 0.35rem;
+}
+
+.admin-order-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0.25rem;
+  box-shadow: none;
+  color: var(--muted) !important;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.9rem;
+  height: 1.8rem;
+  justify-content: center;
+  letter-spacing: normal;
+  line-height: 1;
+  padding: 0;
+  text-transform: none;
+  width: 1.8rem;
+}
+
+.admin-order-button:hover:not(:disabled) {
+  background: rgba(15, 157, 146, 0.12);
+  color: var(--teal-deep) !important;
+}
+
+.admin-order-button:disabled {
+  cursor: default;
+  opacity: 0.22;
 }
 
 .admin-list-empty {
