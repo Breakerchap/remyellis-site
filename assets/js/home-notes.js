@@ -38,7 +38,7 @@
       dateEl.dateTime = latest.date;
       titleEl.textContent = latest.title;
       excerptEl.textContent = latest.excerpt || '';
-      linkEl.href = `/notes.html#${encodeURIComponent(latest.slug)}`;
+      linkEl.href = latest.url || `/notes/${encodeURIComponent(latest.slug)}`;
       card.hidden = false;
     } catch {
       // The Notes link remains useful even if the API is temporarily unavailable.
