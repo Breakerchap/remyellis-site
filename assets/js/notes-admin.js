@@ -55,205 +55,31 @@
       .replaceAll("'", '&#039;');
   }
 
-  function syntaxSpan(className, value) {
-    return `<span class="${className}">${escapeHtml(value)}</span>`;
-  }
-
-  const inlineSyntaxPatterns = [
-    { className: 'wmd-syntax-code', regex: /`[^`\n]*`/g },
-    { className: 'wmd-syntax-math', regex: /\$\$[^$\n]*\$\$/g },
-    { className: 'wmd-syntax-math', regex: /\\\([^\n]*?\\\)/g },
-    { className: 'wmd-syntax-math', regex: /\\\[[^\n]*?\\\]/g },
-    { className: 'wmd-syntax-math', regex: /\$[^$\n]+\$/g },
-    { className: 'wmd-syntax-html', regex: /<\/?[A-Za-z][^>\n]*>/g },
-    { className: 'wmd-syntax-link', regex: /\[\[[^\]\n]+\]\]/g },
-    { className: 'wmd-syntax-link', regex: /\[[^\]\n]+\]\([^\n)]*\)/g },
-    { className: 'wmd-syntax-bold', regex: /\*[^*\n]+\*/g },
-    { className: 'wmd-syntax-italic', regex: /_[^_\n]+_/g },
-  ];
-
-  function highlightInlineWmd(text) {
-    let output = '';
-    let position = 0;
-
-    while (position < text.length) {
-      let chosen = null;
-
-      for (const pattern of inlineSyntaxPatterns) {
-        pattern.regex.lastIndex = position;
-        const match = pattern.regex.exec(text);
-        if (!match) continue;
-        if (!chosen || match.index < chosen.index) {
-          chosen = { index: match.index, value: match[0], className: pattern.className };
-        }
-      }
-
-      if (!chosen) {
-        output += escapeHtml(text.slice(position));
-        break;
-      }
-
-      output += escapeHtml(text.slice(position, chosen.index));
-      output += syntaxSpan(chosen.className, chosen.value);
-      position = chosen.index + chosen.value.length;
-    }
-
-    return output;
-  }
-
-  function highlightWmd(source) {
-    const lines = String(source || '').split('\n');
-    let inFence = false;
-
-    return lines.map(line => {
-      const fence = line.match(/^(\s*)(```)(.*)$/);
-      if (fence) {
-        inFence = !inFence;
-        return escapeHtml(fence[1]) + syntaxSpan('wmd-syntax-code-fence', fence[2] + fence[3]);
-      }
-
-      if (inFence) return syntaxSpan('wmd-syntax-code-block', line);
-
-      const heading = line.match(/^(\s*)(#{1,6})(\s+)(.*)$/);
-      if (heading) {
-        return escapeHtml(heading[1])
-          + syntaxSpan('wmd-syntax-heading-marker', heading[2])
-          + escapeHtml(heading[3])
-          + syntaxSpan('wmd-syntax-heading', heading[4]);
-      }
-
-      const directive = line.match(/^(\s*)((?:@[A-Za-z][\w-]*)|(?:!(?:note|tip|info|warning|danger|rule|example|end)\b))(.*)$/i);
-      if (directive) {
-        return escapeHtml(directive[1])
-          + syntaxSpan('wmd-syntax-directive', directive[2])
-          + `<span class="wmd-syntax-directive-value">${highlightInlineWmd(directive[3])}</span>`;
-      }
-
-      const quote = line.match(/^(\s*>\s?)(.*)$/);
-      if (quote) return `<span class="wmd-syntax-quote">${escapeHtml(quote[1])}${highlightInlineWmd(quote[2])}</span>`;
-
-      const list = line.match(/^(\s*)([-+*]|\d+\.)(\s+)(.*)$/);
-      if (list) {
-        return escapeHtml(list[1])
-          + syntaxSpan('wmd-syntax-list', list[2])
-          + escapeHtml(list[3])
-          + highlightInlineWmd(list[4]);
-      }
-
-      return highlightInlineWmd(line);
-    }).join('\n');
-  }
-
-  function getBodyValue() {
-    return bodyInput.textContent || '';
-  }
-
-  function selectionOffsets() {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return null;
-
-    const range = selection.getRangeAt(0);
-    if (!bodyInput.contains(range.startContainer) || !bodyInput.contains(range.endContainer)) return null;
-
-    const beforeStart = document.createRange();
-    beforeStart.selectNodeContents(bodyInput);
-    beforeStart.setEnd(range.startContainer, range.startOffset);
-
-    const beforeEnd = document.createRange();
-    beforeEnd.selectNodeContents(bodyInput);
-    beforeEnd.setEnd(range.endContainer, range.endOffset);
-
-    return {
-      start: beforeStart.toString().length,
-      end: beforeEnd.toString().length,
-    };
-  }
-
-  function pointAtOffset(offset) {
-    const walker = document.createTreeWalker(bodyInput, NodeFilter.SHOW_TEXT);
-    let remaining = Math.max(0, offset);
-    let node = walker.nextNode();
-    let lastNode = null;
-
-    while (node) {
-      lastNode = node;
-      const length = node.nodeValue.length;
-      if (remaining <= length) return { node, offset: remaining };
-      remaining -= length;
-      node = walker.nextNode();
-    }
-
-    if (lastNode) return { node: lastNode, offset: lastNode.nodeValue.length };
-
-    const text = document.createTextNode('');
-    bodyInput.append(text);
-    return { node: text, offset: 0 };
-  }
-
-  function setSelectionOffsets(start, end = start) {
-    const selection = window.getSelection();
-    if (!selection) return;
-
-    const startPoint = pointAtOffset(start);
-    const endPoint = pointAtOffset(end);
-    const range = document.createRange();
-    range.setStart(startPoint.node, startPoint.offset);
-    range.setEnd(endPoint.node, endPoint.offset);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-
-  function renderEditorSyntax(source, selection = null) {
-    bodyInput.innerHTML = highlightWmd(source);
-    if (selection) setSelectionOffsets(selection.start, selection.end);
-  }
-
-  function setBodyValue(value) {
-    renderEditorSyntax(String(value || ''));
-  }
-
-  function updateSyntaxHighlight() {
-    const selection = selectionOffsets();
-    const source = getBodyValue();
-    renderEditorSyntax(source, selection);
-  }
-
-  function replaceEditorSelection(text) {
-    const source = getBodyValue();
-    const selection = selectionOffsets() || { start: source.length, end: source.length };
-    const next = source.slice(0, selection.start) + text + source.slice(selection.end);
-    const caret = selection.start + text.length;
-    renderEditorSyntax(next, { start: caret, end: caret });
-    updateSaveState();
-  }
-
   function handleTabIndent(event) {
     if (event.key !== 'Tab') return;
     event.preventDefault();
 
     const indent = '  ';
-    const value = getBodyValue();
-    const selection = selectionOffsets() || { start: value.length, end: value.length };
-    const start = selection.start;
-    const end = selection.end;
+    const value = bodyInput.value;
+    const start = bodyInput.selectionStart;
+    const end = bodyInput.selectionEnd;
     const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
 
     if (start === end) {
-      if (!event.shiftKey) {
-        const next = value.slice(0, start) + indent + value.slice(end);
-        const caret = start + indent.length;
-        renderEditorSyntax(next, { start: caret, end: caret });
-      } else {
+      if (event.shiftKey) {
         const line = value.slice(lineStart);
         const match = line.match(/^(  | |\t)/);
         if (match) {
           const remove = match[0].length;
-          const next = value.slice(0, lineStart) + value.slice(lineStart + remove);
+          bodyInput.setRangeText('', lineStart, lineStart + remove, 'end');
           const caret = Math.max(lineStart, start - remove);
-          renderEditorSyntax(next, { start: caret, end: caret });
+          bodyInput.setSelectionRange(caret, caret);
         }
+      } else {
+        bodyInput.setRangeText(indent, start, end, 'end');
       }
-      updateSaveState();
+
+      bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
       return;
     }
 
@@ -272,12 +98,8 @@
       return line;
     }).join('\n');
 
-    const next = value.slice(0, lineStart) + transformed + value.slice(blockEnd);
-    renderEditorSyntax(next, {
-      start: lineStart,
-      end: lineStart + transformed.length,
-    });
-    updateSaveState();
+    bodyInput.setRangeText(transformed, lineStart, blockEnd, 'select');
+    bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   function sanitiseTrustedHtml(html) {
@@ -384,7 +206,7 @@
       date: dateInput.value,
       slug: slugInput.value.trim(),
       format: 'wikimd',
-      body: getBodyValue(),
+      body: bodyInput.value,
       customCss: cssInput.value,
     };
   }
@@ -430,7 +252,7 @@
     titleInput.value = '';
     dateInput.value = localToday();
     slugInput.value = '';
-    setBodyValue('');
+    bodyInput.value = '';
     cssInput.value = '';
     savedSnapshot = null;
     editorEmpty.hidden = true;
@@ -456,7 +278,7 @@
       titleInput.value = note.title;
       dateInput.value = note.date;
       slugInput.value = note.slug;
-      setBodyValue(note.body);
+      bodyInput.value = note.body;
       cssInput.value = note.customCss || '';
       savedSnapshot = snapshot();
       editorEmpty.hidden = true;
@@ -526,7 +348,7 @@
     try {
       const data = await api('/api/admin/render', {
         method: 'POST',
-        body: JSON.stringify({ body: getBodyValue() }),
+        body: JSON.stringify({ body: bodyInput.value }),
       });
       renderCompiled(preview, data.rendered || {}, cssInput.value);
     } catch (error) {
@@ -690,40 +512,9 @@
     slugWasEdited = true;
     updateSaveState();
   });
-  [dateInput, cssInput].forEach(input => {
+  [dateInput, bodyInput, cssInput].forEach(input => {
     input.addEventListener('input', updateSaveState);
     input.addEventListener('change', updateSaveState);
-  });
-
-  let composing = false;
-
-  bodyInput.addEventListener('compositionstart', () => {
-    composing = true;
-  });
-
-  bodyInput.addEventListener('compositionend', () => {
-    composing = false;
-    updateSyntaxHighlight();
-    updateSaveState();
-  });
-
-  bodyInput.addEventListener('input', () => {
-    if (!composing) updateSyntaxHighlight();
-    updateSaveState();
-  });
-
-  bodyInput.addEventListener('beforeinput', event => {
-    if (event.inputType !== 'insertParagraph' && event.inputType !== 'insertLineBreak') return;
-    event.preventDefault();
-    replaceEditorSelection('\n');
-  });
-
-  bodyInput.addEventListener('paste', event => {
-    event.preventDefault();
-    const text = (event.clipboardData || window.clipboardData)
-      .getData('text')
-      .replace(/\r\n?/g, '\n');
-    replaceEditorSelection(text);
   });
 
   bodyInput.addEventListener('keydown', handleTabIndent);
@@ -742,7 +533,7 @@
   });
 
   async function initialise() {
-    setBodyValue(getBodyValue());
+    setBodyValue(bodyInput.value);
     try {
       await api('/api/admin/session');
       showApp();
