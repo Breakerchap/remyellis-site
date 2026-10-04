@@ -407,16 +407,30 @@ function normaliseNoteInput(input, existing, store) {
   return { title, slug, date, format, body, customCss };
 }
 
+function comparePublicFallback(a, b) {
+  const byDate = b.date.localeCompare(a.date);
+  if (byDate !== 0) return byDate;
+  return String(b.publishedAt || '').localeCompare(String(a.publishedAt || ''));
+}
+
 function sortPublicNotes(notes) {
   return [...notes].sort((a, b) => {
-    const byDate = b.date.localeCompare(a.date);
-    if (byDate !== 0) return byDate;
-    return String(b.publishedAt || '').localeCompare(String(a.publishedAt || ''));
+    const aOrder = Number.isInteger(a.order) ? a.order : null;
+    const bOrder = Number.isInteger(b.order) ? b.order : null;
+
+    if (aOrder !== null && bOrder !== null && aOrder !== bOrder) return aOrder - bOrder;
+    if (aOrder !== null && bOrder === null) return -1;
+    if (aOrder === null && bOrder !== null) return 1;
+    return comparePublicFallback(a, b);
   });
 }
 
 function sortAdminNotes(notes) {
-  return [...notes].sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  const drafts = notes
+    .filter(note => note.status === 'draft')
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  const published = sortPublicNotes(notes.filter(note => note.status === 'published'));
+  return [...drafts, ...published];
 }
 
 function routeParam(pathname, prefix) {
@@ -618,9 +632,41 @@ async function handle(req, res) {
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
       publishedAt: note.publishedAt || null,
+      order: Number.isInteger(note.order) ? note.order : null,
       excerpt: makeExcerpt(note),
     }));
     return sendJson(res, 200, { notes }, { 'Cache-Control': 'no-store' });
+  }
+
+  if (req.method === 'PATCH' && pathname === '/api/admin/notes/order') {
+    if (!requireAuth(req, res)) return;
+    const store = readStore();
+    const input = await readJsonBody(req);
+    const ids = Array.isArray(input.ids) ? input.ids.map(id => String(id)) : null;
+
+    if (!ids) {
+      return sendJson(res, 400, { error: 'ids must be an array.' }, { 'Cache-Control': 'no-store' });
+    }
+
+    const published = store.notes.filter(note => note.status === 'published');
+    const publishedIds = new Set(published.map(note => note.id));
+    const requestedIds = new Set(ids);
+
+    if (
+      ids.length !== published.length ||
+      requestedIds.size !== ids.length ||
+      ids.some(id => !publishedIds.has(id))
+    ) {
+      return sendJson(res, 400, { error: 'Order must contain every published note exactly once.' }, { 'Cache-Control': 'no-store' });
+    }
+
+    const byId = new Map(store.notes.map(note => [note.id, note]));
+    ids.forEach((id, index) => {
+      byId.get(id).order = index;
+    });
+
+    writeStore(store);
+    return sendJson(res, 200, { ordered: true }, { 'Cache-Control': 'no-store' });
   }
 
   if (req.method === 'GET') {
@@ -678,7 +724,16 @@ async function handle(req, res) {
     const note = store.notes.find(item => item.id === id);
     if (!note) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
     if (!note.body.trim()) return sendJson(res, 400, { error: 'A note must have content before it can be published.' }, { 'Cache-Control': 'no-store' });
+
+    const existingPublished = sortPublicNotes(
+      store.notes.filter(item => item.status === 'published' && item.id !== note.id)
+    );
+    existingPublished.forEach((item, index) => {
+      item.order = index + 1;
+    });
+
     note.status = 'published';
+    note.order = 0;
     note.updatedAt = nowIso();
     note.publishedAt = note.publishedAt || note.updatedAt;
     writeStore(store);
@@ -693,6 +748,7 @@ async function handle(req, res) {
     const note = store.notes.find(item => item.id === id);
     if (!note) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
     note.status = 'draft';
+    note.order = null;
     note.updatedAt = nowIso();
     writeStore(store);
     return sendJson(res, 200, { note }, { 'Cache-Control': 'no-store' });
