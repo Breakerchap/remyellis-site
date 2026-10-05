@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server/dev-server.js",
     "notes-server": "node server/notes-server.js",
-    "check": "node --check server/notes-server.js && node --check server/dev-server.js && node --check assets/js/notes.js && node --check assets/js/note-page.js && node --check assets/js/notes-admin.js"
+    "check": "node --check server/notes-server.js && node --check server/dev-server.js && node --check assets/js/notes.js && node --check assets/js/note-page.js && node --check assets/js/wikimd-editor-mode.js && node --check assets/js/notes-admin.js"
   },
   "engines": {
     "node": ">=20"

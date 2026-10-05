@@ -46,8 +46,14 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function normaliseWikiMdProseFences(source) {
+  return String(source || '')
+    .replace(/^(\s*)<<<\s*$/gm, '$1[[[')
+    .replace(/^(\s*)>>>\s*$/gm, '$1]]]');
+}
+
 function renderWikiMd(source) {
-  const rendered = renderWikiMdFragment(String(source || ''), { html: true });
+  const rendered = renderWikiMdFragment(normaliseWikiMdProseFences(source), { html: true });
   return {
     html: rendered.html || '',
     compilerCss: rendered.css || '',
@@ -327,19 +333,32 @@ function makeExcerpt(note) {
 }
 
 function excerptSource(note) {
-  const lines = String(note.body || '').split(/\r?\n/);
+  const lines = normaliseWikiMdProseFences(note.body).split(/\r?\n/);
   const selected = [];
   let characters = 0;
+  let substantiveLines = 0;
+  let proseCloser = '';
 
   for (const line of lines) {
-    if (!line.trim()) {
-      if (selected.length) selected.push('');
-      continue;
+    const trimmed = line.trim();
+
+    if (!proseCloser && trimmed === '[[[') {
+      proseCloser = ']]]';
     }
 
-    selected.push(line);
-    characters += line.length;
-    if (selected.filter(item => item.trim()).length >= 4 || characters >= 520) break;
+    if (!trimmed) {
+      if (selected.length) selected.push('');
+    } else {
+      selected.push(line);
+      characters += line.length;
+      substantiveLines += 1;
+    }
+
+    if (proseCloser && trimmed === proseCloser) {
+      proseCloser = '';
+    }
+
+    if (!proseCloser && (substantiveLines >= 4 || characters >= 520)) break;
   }
 
   return selected.join('\n').trim();
