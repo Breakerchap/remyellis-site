@@ -666,3 +666,189 @@
   line-height: 1.55;
   margin: 1.25rem 0 -0.75rem;
 }
+
+/* Responsive admin refinement — 2026-10-05 */
+
+@media screen and (max-width: 760px) {
+  .notes-topbar {
+    gap: 0.75rem;
+    min-height: 3.75rem;
+    padding: 0.45rem max(0.8rem, env(safe-area-inset-right)) 0.45rem max(0.8rem, env(safe-area-inset-left));
+  }
+
+  .notes-brand {
+    flex: 0 0 auto;
+    font-size: 0.95rem;
+  }
+
+  .notes-brand img {
+    height: 2rem;
+    width: 2rem;
+  }
+
+  .notes-topbar nav {
+    gap: 0.7rem;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .notes-topbar nav a,
+  .admin-topbar-button {
+    align-items: center;
+    display: inline-flex;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .admin-login {
+    min-height: calc(100svh - 3.75rem);
+    padding: 1.25rem;
+  }
+
+  .admin-login-card {
+    padding: 1.6rem 1.25rem;
+  }
+
+  .admin-sidebar {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .admin-sidebar-head {
+    gap: 0.8rem;
+  }
+
+  .admin-sidebar-head .button {
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .admin-note-list {
+    max-height: 13rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-note-open {
+    min-height: 52px;
+    padding-bottom: 0.72rem;
+    padding-top: 0.72rem;
+  }
+
+  .admin-order-button {
+    height: 2.5rem;
+    width: 2.5rem;
+  }
+
+  .admin-editor-shell {
+    padding-bottom: max(2.5rem, env(safe-area-inset-bottom));
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .editor-toolbar {
+    gap: 0.9rem;
+  }
+
+  .editor-status-line {
+    flex-wrap: wrap;
+  }
+
+  .editor-actions {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .editor-actions > * {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .admin-danger {
+    align-items: center;
+    border: 1px solid rgba(156, 52, 52, 0.22);
+    border-radius: 0.3rem;
+    display: inline-flex;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .note-form input,
+  .note-form select,
+  .note-form textarea {
+    font-size: 16px;
+  }
+
+  .note-body-input,
+  .CodeMirror.note-body-editor {
+    height: clamp(26rem, 68svh, 44rem);
+  }
+
+  .editor-tabs {
+    gap: 0;
+  }
+
+  .editor-tab {
+    flex: 1 1 50%;
+    min-height: 44px;
+    text-align: center;
+  }
+
+  .preview-pane,
+  .admin-preview {
+    min-width: 0;
+  }
+
+  .admin-preview {
+    overflow-wrap: anywhere;
+    padding: 1.15rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .notes-topbar {
+    gap: 0.45rem;
+  }
+
+  .notes-brand span {
+    display: none;
+  }
+
+  .notes-topbar nav {
+    gap: 0.45rem;
+  }
+
+  .admin-topbar-button,
+  .notes-topbar nav a {
+    font-size: 0.74rem;
+  }
+
+  .admin-sidebar {
+    padding-bottom: 1rem;
+    padding-top: 1rem;
+  }
+
+  .admin-sidebar-head h1 {
+    font-size: 1.55rem;
+  }
+
+  .admin-editor-shell {
+    padding-top: 1rem;
+  }
+
+  .editor-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .note-body-input,
+  .CodeMirror.note-body-editor {
+    height: 66svh;
+    min-height: 25rem;
+  }
+
+  .custom-css-panel p,
+  .editor-language-note {
+    font-size: 0.76rem;
+  }
+}
+
