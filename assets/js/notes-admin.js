@@ -81,6 +81,10 @@
 
     bodyEditor = window.CodeMirror.fromTextArea(bodyInput, {
       mode: 'wikimd',
+      inputStyle: 'contenteditable',
+      spellcheck: true,
+      autocorrect: true,
+      autocapitalize: true,
       lineNumbers: false,
       lineWrapping: true,
       indentUnit: 2,
@@ -109,6 +113,18 @@
     });
 
     bodyEditor.getWrapperElement().classList.add('note-body-editor');
+
+    // Keep browser-native spelling behaviour enabled on CodeMirror's actual
+    // editable surface. The original textarea already has spellcheck enabled,
+    // but CodeMirror otherwise edits through a hidden textarea where Chrome
+    // cannot draw its normal spelling underlines.
+    const editorInput = bodyEditor.getInputField();
+    if (editorInput) {
+      editorInput.setAttribute('spellcheck', 'true');
+      editorInput.setAttribute('autocorrect', 'on');
+      editorInput.setAttribute('autocapitalize', 'sentences');
+    }
+
     bodyEditor.on('change', cm => {
       bodyInput.value = cm.getValue();
       updateSaveState();
