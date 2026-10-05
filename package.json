@@ -6,12 +6,12 @@
   "scripts": {
     "dev": "node server/dev-server.js",
     "notes-server": "node server/notes-server.js",
-    "check": "node --check server/notes-server.js && node --check server/dev-server.js && node --check assets/js/notes.js && node --check assets/js/note-page.js && node --check assets/js/notes-admin.js"
+    "check": "node --check server/notes-server.js && node --check server/dev-server.js && node --check assets/js/notes.js && node --check assets/js/note-page.js && node --check assets/js/wikimd-editor-mode.js && node --check assets/js/notes-admin.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "wikimd": "github:Breakerchap/WikiMD#02e0216d9d964e642b7ea3a0c40b4ef62a91e965"
+    "wikimd": "github:Breakerchap/WikiMD#69d32d02e26042a56fbd42fecb417fa2e4aea3de"
   }
 }
