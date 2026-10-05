@@ -529,6 +529,21 @@
   font-style: italic;
 }
 
+.cm-wmd-prose-fence {
+  color: #af00db;
+  font-weight: 700;
+}
+
+.cm-wmd-prose {
+  color: #5d4037;
+}
+
+.cm-wmd-mention {
+  background: #f4eee8;
+  border-radius: 0.16em;
+  color: #8a4b08;
+}
+
 .cm-wmd-highlight-yellow {
   background: #fff7a8;
   color: #6b5e00;
