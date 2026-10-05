@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
-const { renderFragment: renderWikiMdFragment } = require('wikimd');
+const { renderFragment: renderWmdFragment } = require('wmd');
 
 const HOST = process.env.NOTES_HOST || '127.0.0.1';
 const PORT = Number(process.env.NOTES_PORT || 8790);
