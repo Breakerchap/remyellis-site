@@ -12,6 +12,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "wikimd": "github:Breakerchap/WikiMD#b6bbff19551d5673928d7f91c3677f59e6fc233e"
+    "wikimd": "github:Breakerchap/WikiMD#c5c1bed598314c6d63eeb0495018af13c2f18868"
   }
 }
