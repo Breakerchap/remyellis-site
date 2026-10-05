@@ -53,7 +53,7 @@ function normaliseWikiMdProseFences(source) {
 }
 
 function renderWikiMd(source) {
-  const rendered = renderWikiMdFragment(normaliseWikiMdProseFences(source), { html: true });
+  const rendered = renderWmdFragment(normaliseWikiMdProseFences(source), { html: true });
   return {
     html: rendered.html || '',
     compilerCss: rendered.css || '',
