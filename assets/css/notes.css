@@ -372,3 +372,169 @@ body.notes-page {
 .note-excerpt.note-body > :last-child {
   margin-bottom: 0;
 }
+
+/* Responsive notes refinement — 2026-10-05 */
+
+.note-body,
+.note-excerpt {
+  min-width: 0;
+}
+
+.note-body pre,
+.note-body table,
+.note-body .katex-display {
+  -webkit-overflow-scrolling: touch;
+}
+
+.note-body :not(pre) > code {
+  overflow-wrap: anywhere;
+}
+
+@media screen and (max-width: 900px) {
+  .notes-hero > .inner {
+    padding-bottom: 4.4rem;
+    padding-top: 4.4rem;
+  }
+
+  .notes-inner {
+    padding-top: 3.3rem !important;
+  }
+}
+
+@media screen and (max-width: 736px) {
+  .notes-hero > .inner {
+    padding-bottom: 3.55rem;
+    padding-top: 3.55rem;
+  }
+
+  .notes-hero h1 {
+    font-size: clamp(2.9rem, 15vw, 4rem);
+    line-height: 1;
+  }
+
+  .notes-hero .lead {
+    font-size: clamp(1.2rem, 6vw, 1.45rem);
+    line-height: 1.42;
+  }
+
+  .notes-inner {
+    padding-bottom: 3rem !important;
+    padding-top: 2.65rem !important;
+  }
+
+  .note-card {
+    padding: 1.7rem 0 1.9rem;
+  }
+
+  .note-card-header h2 {
+    font-size: clamp(1.8rem, 9vw, 2.25rem);
+    line-height: 1.12;
+  }
+
+  .note-card-header time {
+    line-height: 1.4;
+  }
+
+  .note-excerpt {
+    font-size: 0.96rem;
+    line-height: 1.72;
+  }
+
+  .note-toggle {
+    align-items: center;
+    display: inline-flex;
+    min-height: 44px;
+    padding-bottom: 0;
+  }
+
+  .note-body {
+    font-size: 1rem;
+    line-height: 1.76;
+    margin-top: 1.45rem;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .note-body h1 {
+    font-size: 1.75rem;
+  }
+
+  .note-body h2 {
+    font-size: 1.45rem;
+  }
+
+  .note-body h3 {
+    font-size: 1.22rem;
+  }
+
+  .note-body h1,
+  .note-body h2,
+  .note-body h3,
+  .note-body h4 {
+    line-height: 1.25;
+    margin-top: 1.5em;
+  }
+
+  .note-body ul,
+  .note-body ol {
+    padding-left: 1.25rem;
+  }
+
+  .note-body blockquote {
+    padding-left: 0.9rem;
+  }
+
+  .note-body pre {
+    border-radius: 0.35rem;
+    font-size: 0.88rem;
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+    padding: 0.85rem 0.9rem;
+  }
+
+  .note-body table {
+    font-size: 0.9rem;
+    margin-left: -0.15rem;
+    max-width: calc(100% + 0.3rem);
+  }
+
+  .note-body th,
+  .note-body td {
+    padding: 0.48rem 0.6rem;
+  }
+
+  .note-body .katex-display {
+    margin-left: -0.15rem;
+    margin-right: -0.15rem;
+  }
+
+  .note-body .callout {
+    margin: 1.15rem 0;
+    padding: 0.85rem 0.9rem;
+  }
+
+  .note-body .collapse {
+    padding-left: 0.8rem;
+    padding-right: 0.8rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .notes-hero > .inner {
+    padding-bottom: 3.1rem;
+    padding-top: 3.1rem;
+  }
+
+  .notes-inner {
+    padding-top: 2.35rem !important;
+  }
+
+  .note-card-header h2 {
+    font-size: clamp(1.7rem, 9.5vw, 2.05rem);
+  }
+
+  .note-body {
+    font-size: 0.98rem;
+  }
+}
+
