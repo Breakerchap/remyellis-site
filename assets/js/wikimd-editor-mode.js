@@ -4,7 +4,7 @@
   if (!window.CodeMirror || window.CodeMirror.modes.wikimd) return;
 
   window.CodeMirror.defineMode('wikimd', () => ({
-    startState: () => ({ fencedCode: false, config: false }),
+    startState: () => ({ fencedCode: false, config: false, proseBlock: null }),
 
     token(stream, state) {
       if (state.fencedCode) {
@@ -18,6 +18,27 @@
       }
 
       if (stream.sol()) {
+        if (state.proseBlock) {
+          const closePattern = state.proseBlock === 'brackets'
+            ? /^\s*\]\]\]\s*$/
+            : /^\s*>>>\s*$/;
+
+          if (stream.match(closePattern)) {
+            state.proseBlock = null;
+            return 'wmd-prose-fence';
+          }
+        }
+
+        if (!state.proseBlock && stream.match(/^\s*\[\[\[\s*$/)) {
+          state.proseBlock = 'brackets';
+          return 'wmd-prose-fence';
+        }
+
+        if (!state.proseBlock && stream.match(/^\s*<<<\s*$/)) {
+          state.proseBlock = 'arrows';
+          return 'wmd-prose-fence';
+        }
+
         if (stream.match(/^\s*\`\`\`(?:[A-Za-z0-9_-]+)?\s*$/)) {
           state.fencedCode = true;
           return 'wmd-code-fence';
@@ -56,6 +77,7 @@
 
       const previous = stream.pos > 0 ? stream.string[stream.pos - 1] : '';
 
+      if (stream.match(/^<<(?!<)[^>\n]+>>(?!>)/)) return 'wmd-mention';
       if (stream.match(/^\[\[[^\]\n]+\]\]/)) return 'wmd-wikilink';
       if (stream.match(/^\[[^\]\n]+\]\([^\)\n]+\)/)) return 'wmd-link';
       if (stream.match(/^\{\{[A-Za-z][\w-]*\}\}/)) return 'wmd-variable';
@@ -79,7 +101,7 @@
       if (stream.match(/^\\\[[^\n]+?\\\]/)) return 'wmd-math';
 
       stream.next();
-      return null;
+      return state.proseBlock ? 'wmd-prose' : null;
     },
   }));
 })();
