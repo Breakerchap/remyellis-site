@@ -12,6 +12,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "wmd": "github:Breakerchap/WMD#ffae09e36ba610c180c9d99913d1826a2b69c7af"
+    "wmd": "github:Breakerchap/WMD#c2f63ee615cc30478512cad13e708b13bc69af78"
   }
 }

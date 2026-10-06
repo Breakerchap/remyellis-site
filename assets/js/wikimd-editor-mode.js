@@ -18,24 +18,13 @@
       }
 
       if (stream.sol()) {
-        if (state.proseBlock) {
-          const closePattern = state.proseBlock === 'brackets'
-            ? /^\s*\]\]\]\s*$/
-            : /^\s*>>>\s*$/;
-
-          if (stream.match(closePattern)) {
-            state.proseBlock = null;
-            return 'wmd-prose-fence';
-          }
+        if (state.proseBlock && stream.match(/^\s*\]\]\]\s*$/)) {
+          state.proseBlock = null;
+          return 'wmd-prose-fence';
         }
 
         if (!state.proseBlock && stream.match(/^\s*\[\[\[\s*$/)) {
           state.proseBlock = 'brackets';
-          return 'wmd-prose-fence';
-        }
-
-        if (!state.proseBlock && stream.match(/^\s*<<<\s*$/)) {
-          state.proseBlock = 'arrows';
           return 'wmd-prose-fence';
         }
 
@@ -77,6 +66,7 @@
 
       const previous = stream.pos > 0 ? stream.string[stream.pos - 1] : '';
 
+      if (stream.match(/^<<<(?!<)[^<>\n]+>>>(?!>)/)) return 'wmd-inline-prose';
       if (stream.match(/^<<(?!<)[^>\n]+>>(?!>)/)) return 'wmd-mention';
       if (stream.match(/^\[\[[^\]\n]+\]\]/)) return 'wmd-wikilink';
       if (stream.match(/^\[[^\]\n]+\]\([^\)\n]+\)/)) return 'wmd-link';

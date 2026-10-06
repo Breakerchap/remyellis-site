@@ -538,6 +538,11 @@
   color: #5d4037;
 }
 
+.cm-wmd-inline-prose {
+  color: #5d4037;
+  font-family: "Century Schoolbook", "Century Schoolbook L", serif;
+}
+
 .cm-wmd-mention {
   background: #f4eee8;
   border-radius: 0.16em;

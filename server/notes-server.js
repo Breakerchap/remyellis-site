@@ -46,14 +46,8 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function normaliseWikiMdProseFences(source) {
-  return String(source || '')
-    .replace(/^(\s*)<<<\s*$/gm, '$1[[[')
-    .replace(/^(\s*)>>>\s*$/gm, '$1]]]');
-}
-
 function renderWikiMd(source) {
-  const rendered = renderWmdFragment(normaliseWikiMdProseFences(source), { html: true });
+  const rendered = renderWmdFragment(String(source || ''), { html: true });
   return {
     html: rendered.html || '',
     compilerCss: rendered.css || '',
@@ -333,7 +327,7 @@ function makeExcerpt(note) {
 }
 
 function excerptSource(note) {
-  const lines = normaliseWikiMdProseFences(note.body).split(/\r?\n/);
+  const lines = String(note.body || '').split(/\r?\n/);
   const selected = [];
   let characters = 0;
   let substantiveLines = 0;
