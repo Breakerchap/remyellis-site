@@ -442,6 +442,13 @@ function renderNotePage(note) {
     mainEntityOfPage: canonicalUrl,
     author: {
       '@type': 'Person',
+      '@id': `${SITE_URL}/#person`,
+      name: 'Remy Ellis',
+      url: `${SITE_URL}/`,
+    },
+    isPartOf: {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
       name: 'Remy Ellis',
       url: `${SITE_URL}/`,
     },
@@ -450,14 +457,16 @@ function renderNotePage(note) {
   return `<!DOCTYPE HTML>
 <html lang="en-AU">
 <head>
-  <title>${escapeHtml(note.title)} - Remy Ellis</title>
+  <title>${escapeHtml(note.title)} – Remy Ellis</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="${escapeHtml(description)}" />
   <meta name="author" content="Remy Ellis" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="theme-color" content="#0b7f98" />
 
   <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+  <link rel="author" href="${SITE_URL}/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Remy Ellis" />
   <meta property="og:title" content="${escapeHtml(note.title)}" />
@@ -792,7 +801,10 @@ async function handle(req, res) {
   if (req.method === 'GET' && pathname === '/api/notes') {
     const store = readStore();
     const published = sortPublicNotes(store.notes.filter(note => note.status === 'published'));
-    return sendJson(res, 200, { notes: published.map(publicSummary) }, { 'Cache-Control': 'no-cache' });
+    return sendJson(res, 200, { notes: published.map(publicSummary) }, {
+      'Cache-Control': 'no-cache',
+      'X-Robots-Tag': 'noindex, nofollow',
+    });
   }
 
   if (req.method === 'GET') {
@@ -801,7 +813,10 @@ async function handle(req, res) {
       const store = readStore();
       const note = store.notes.find(item => item.status === 'published' && item.slug === slug);
       if (!note) return sendJson(res, 404, { error: 'Note not found.' });
-      return sendJson(res, 200, { note: publicNote(note) }, { 'Cache-Control': 'no-cache' });
+      return sendJson(res, 200, { note: publicNote(note) }, {
+        'Cache-Control': 'no-cache',
+        'X-Robots-Tag': 'noindex, nofollow',
+      });
     }
   }
 

@@ -2,31 +2,66 @@
 <html lang="en-AU">
 
 <head>
-  <title>Remy Ellis</title>
+  <title>Remy Ellis – Mathematics, Software &amp; Writing</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="author" content="Remy Ellis" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="description"
-    content="The personal website of Remy Ellis: mathematics, software projects, papers and writing." />
+    content="Remy Ellis is a Sydney-based student working on mathematics, physics, software, games, fiction and film. Explore research, projects, writing and notes." />
   <meta name="theme-color" content="#0b7f98" />
 
   <link rel="canonical" href="https://remyellis.au/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Remy Ellis" />
-  <meta property="og:title" content="Remy Ellis" />
-  <meta property="og:description" content="Mathematics, software, and fiction." />
+  <meta property="og:title" content="Remy Ellis – Mathematics, Software &amp; Writing" />
+  <meta property="og:description" content="Mathematics, physics, software, games, fiction and film by Remy Ellis." />
   <meta property="og:url" content="https://remyellis.au/" />
   <meta property="og:locale" content="en_AU" />
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "Person",
-    "name": "Remy Ellis",
-    "url": "https://remyellis.au/",
-    "sameAs": [
-      "https://github.com/Breakerchap",
-      "https://www.youtube.com/@remysmovies",
-      "https://orcid.org/0009-0002-3549-6870"
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://remyellis.au/#website",
+        "url": "https://remyellis.au/",
+        "name": "Remy Ellis",
+        "inLanguage": "en-AU"
+      },
+      {
+        "@type": "ProfilePage",
+        "@id": "https://remyellis.au/#profile",
+        "url": "https://remyellis.au/",
+        "name": "Remy Ellis – Mathematics, Software & Writing",
+        "isPartOf": {
+          "@id": "https://remyellis.au/#website"
+        },
+        "mainEntity": {
+          "@id": "https://remyellis.au/#person"
+        }
+      },
+      {
+        "@type": "Person",
+        "@id": "https://remyellis.au/#person",
+        "name": "Remy Ellis",
+        "url": "https://remyellis.au/",
+        "description": "Sydney-based student interested in mathematics, physics, software, games, fiction and film.",
+        "sameAs": [
+          "https://github.com/Breakerchap",
+          "https://www.youtube.com/@remysmovies7740",
+          "https://orcid.org/0009-0002-3549-6870"
+        ],
+        "knowsAbout": [
+          "Mathematics",
+          "Physics",
+          "Software development",
+          "Game development",
+          "Fiction",
+          "Film"
+        ]
+      }
     ]
   }
   </script>
@@ -65,8 +100,8 @@
       <div class="inner">
         <h1>Remy Ellis</h1>
         <p class="lead">Mathematics, software, and fiction.</p>
-        <p class="intro-copy">I work on mathematical problems, study physics, build software and games, write
-          fiction and make films. This site collects the things I am working on and the things I think are worth
+        <p class="intro-copy">I'm Remy Ellis. I work on mathematical problems, study physics, build software and games,
+          write fiction and make films. This site collects the things I am working on and the things I think are worth
           sharing.</p>
         <a class="text-link notes-link" href="/notes.html">
           Notes <span aria-hidden="true">→</span>
@@ -101,7 +136,7 @@
             <div class="publication-links">
               <span class="quiet-link">
                 <a href="/assets/A-Prime-Power-Obstruction-for-Equal-Divisor-Sums-at-Consecutive-Integers.pdf">
-                  Manuscript
+                  Read the manuscript
                 </a>
                 &emsp;&copy; Remy Ellis 2026
               </span>
@@ -142,7 +177,7 @@
               <span class="writing-type">Short fiction</span>
               <h3>Stale Bread <span class="subtitle">/ Or The Hand That Feeds</span></h3>
             </div>
-            <span class="quiet-link"><a href="/assets/Stale-Bread.pdf">Read it here</a></span>
+            <span class="quiet-link"><a href="/assets/Stale-Bread.pdf">Read Stale Bread</a></span>
           </article>
           <article>
             <div>
@@ -150,7 +185,7 @@
               <h3>Made In Translation <span class="subtitle"><br>Best Director - Student Film - Prague Silver Screen
                   Film Festival</span></h3>
             </div>
-            <span class="quiet-link"><a href="https://www.youtube.com/watch?v=R-KJV-GHwVo">Watch it here</a></span>
+            <span class="quiet-link"><a href="https://www.youtube.com/watch?v=R-KJV-GHwVo">Watch Made In Translation</a></span>
           </article>
           <article>
             <div>
@@ -158,14 +193,14 @@
               <h3>The Mystery on Nanny Goat Hill <span class="subtitle">&#8192;<br> Best Director - Welsh International
                   Children's Film Festival</span></h3>
             </div>
-            <span class="quiet-link"><a href="https://www.youtube.com/watch?v=MnRllpdVfdc">Watch it here</a></span>
+            <span class="quiet-link"><a href="https://www.youtube.com/watch?v=MnRllpdVfdc">Watch The Mystery on Nanny Goat Hill</a></span>
           </article>
           <article>
             <div>
               <span class="writing-type">Poem</span>
               <h3>What You Need To Know About Me </h3>
             </div>
-            <span class="quiet-link"><a href="/assets/What-You-Need-to-Know-About-Me.pdf">Read it here</a></span>
+            <span class="quiet-link"><a href="/assets/What-You-Need-to-Know-About-Me.pdf">Read What You Need To Know About Me</a></span>
           </article>
         </div>
       </div>
@@ -258,8 +293,11 @@
             <ul class="contact-links">
               <li><span>Email</span><a href="mailto:remy@remyellis.au">remy@remyellis.au</a></li>
               <li><span>GitHub</span><a href="https://github.com/Breakerchap" target="_blank"
-                  rel="noreferrer">@Breakerchap</a></li>
-              <li><span>YouTube</span><a href="https://www.youtube.com/@remysmovies7740/videos">Remy's Movies</a></li>
+                  rel="me noreferrer">@Breakerchap</a></li>
+              <li><span>ORCID</span><a href="https://orcid.org/0009-0002-3549-6870" target="_blank"
+                  rel="me noreferrer">0009-0002-3549-6870</a></li>
+              <li><span>YouTube</span><a href="https://www.youtube.com/@remysmovies7740/videos"
+                  rel="me">Remy's Movies</a></li>
             </ul>
           </aside>
         </div>

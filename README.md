@@ -1,7 +1,7 @@
 REMYELLIS.AU — PORTFOLIO SITE
 ============================
 
-This is the source for remyellis.au. The main portfolio is static HTML/CSS/JS based on the Hyperspace template by HTML5 UP, with a small Node backend for Notes.
+This is the source for [remyellis.au](https://remyellis.au/). The main portfolio is static HTML/CSS/JS based on the Hyperspace template by HTML5 UP, with a small Node backend for Notes.
 
 Main files
 ----------
