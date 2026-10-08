@@ -21,6 +21,8 @@
   const publishButton = document.querySelector('#publish-note');
   const unpublishButton = document.querySelector('#unpublish-note');
   const deleteButton = document.querySelector('#delete-note');
+  const downloadWmdButton = document.querySelector('#download-wmd');
+  const downloadHtmlButton = document.querySelector('#download-html');
   const statusChip = document.querySelector('#note-status');
   const saveState = document.querySelector('#save-state');
   const preview = document.querySelector('#note-preview');
@@ -497,6 +499,45 @@
     }
   }
 
+async function downloadCurrent(format) {
+  showError('');
+  const payload = { ...formData(), downloadFormat: format };
+
+  try {
+    const response = await fetch('/api/admin/export', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/octet-stream' },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 401) {
+      showLogin();
+      throw new Error('Your session has expired. Sign in again.');
+    }
+    if (!response.ok) {
+      let message = `Download failed (${response.status}).`;
+      try {
+        const data = await response.json();
+        if (data.error) message = data.error;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = `${slugify(payload.slug || payload.title)}.${format}`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  } catch (error) {
+    showError(error.message);
+  }
+}
+
   async function saveCurrent() {
     if (busy) return null;
     showError('');
@@ -643,6 +684,8 @@
   publishButton.addEventListener('click', publishCurrent);
   unpublishButton.addEventListener('click', unpublishCurrent);
   deleteButton.addEventListener('click', deleteCurrent);
+  downloadWmdButton.addEventListener('click', () => downloadCurrent('wmd'));
+  downloadHtmlButton.addEventListener('click', () => downloadCurrent('html'));
   writeButton.addEventListener('click', showWritePane);
   previewButton.addEventListener('click', showPreviewPane);
 

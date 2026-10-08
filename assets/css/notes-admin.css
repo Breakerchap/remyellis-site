@@ -297,6 +297,37 @@
   gap: 0.7rem;
 }
 
+.editor-export {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.6rem 0 1.5rem;
+  font-size: 0.79rem;
+  color: var(--muted-soft);
+}
+
+.editor-export button {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.3rem;
+  box-shadow: none;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+  height: auto;
+  letter-spacing: normal;
+  line-height: 1.25;
+  padding: 0.45rem 0.65rem;
+  text-transform: none;
+}
+
+.editor-export button:hover,
+.editor-export button:focus-visible {
+  border-color: var(--accent, #0b7f98);
+}
+
 .note-status {
   border-radius: 999px;
   font-size: 0.66rem;

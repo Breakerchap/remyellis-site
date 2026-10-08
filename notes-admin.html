@@ -13,14 +13,14 @@
   <link rel="stylesheet" href="assets/css/remy.css?v=20261005-1" />
   <link rel="stylesheet" href="assets/css/notes.css?v=20261005-1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.css" />
-  <link rel="stylesheet" href="assets/css/notes-admin.css?v=20261007-1" />
+  <link rel="stylesheet" href="assets/css/notes-admin.css?v=20261008-1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.js"></script>
   <script defer src="assets/js/wikimd-editor-mode.js?v=20261007-1"></script>
-  <script defer src="assets/js/notes-admin.js?v=20261004-3"></script>
+  <script defer src="assets/js/notes-admin.js?v=20261008-1"></script>
 </head>
 
 <body class="notes-page admin-page">
@@ -81,6 +81,12 @@
               <button id="publish-note" type="button" class="button">Publish</button>
               <button id="save-note" type="submit" form="note-form" class="button primary">Save draft</button>
             </div>
+          </div>
+
+          <div class="editor-export" role="group" aria-label="Download current note">
+            <span>Download current contents (including unsaved changes):</span>
+            <button id="download-wmd" type="button">.wmd</button>
+            <button id="download-html" type="button">.html</button>
           </div>
 
           <form id="note-form" class="note-form">
