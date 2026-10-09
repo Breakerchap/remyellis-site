@@ -87,6 +87,11 @@
 
     <section class="wrapper section-shell notes-section fade-up">
       <div class="inner notes-inner">
+        <p id="notes-error" class="notes-message notes-error" hidden></p>
+        <p id="notes-empty" class="notes-message" hidden>No notes here yet.</p>
+        <div id="notes-list" class="notes-list" aria-live="polite">
+          <p class="notes-message">Loading notes…</p>
+        </div>
         <section class="notes-subscribe" aria-labelledby="notes-subscribe-heading">
           <h2 id="notes-subscribe-heading">Get new notes by email</h2>
           <p>Occasional emails when I publish something new. No other mail.</p>
@@ -97,13 +102,7 @@
             <button type="submit">Subscribe</button>
           </form>
           <p class="notes-subscribe-status" role="status" hidden></p>
-          <p class="notes-subscribe-small">Confirm your address by email. Unsubscribe from any update.</p>
         </section>
-        <p id="notes-error" class="notes-message notes-error" hidden></p>
-        <p id="notes-empty" class="notes-message" hidden>No notes here yet.</p>
-        <div id="notes-list" class="notes-list" aria-live="polite">
-          <p class="notes-message">Loading notes…</p>
-        </div>
       </div>
     </section>
   </div>
