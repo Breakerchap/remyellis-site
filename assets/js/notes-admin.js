@@ -271,6 +271,7 @@
     loginView.hidden = false;
     appView.hidden = true;
     logoutButton.hidden = true;
+    document.dispatchEvent(new Event('notes-admin:signed-out'));
     setTimeout(() => passwordInput.focus(), 0);
   }
 
@@ -278,6 +279,7 @@
     loginView.hidden = true;
     appView.hidden = false;
     logoutButton.hidden = false;
+    document.dispatchEvent(new Event('notes-admin:authenticated'));
   }
 
   function localToday() {
