@@ -14,15 +14,15 @@
   <link rel="stylesheet" href="assets/css/notes.css?v=20261005-1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.css" />
   <link rel="stylesheet" href="assets/css/notes-admin.css?v=20261008-2" />
-  <link rel="stylesheet" href="assets/css/comments.css" />
+  <link rel="stylesheet" href="assets/css/comments.css?v=20261009-3" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.js"></script>
   <script defer src="assets/js/wikimd-editor-mode.js?v=20261007-1"></script>
-  <script defer src="assets/js/notes-admin.js?v=20261009-comments"></script>
-  <script defer src="assets/js/comments-admin.js"></script>
+  <script defer src="assets/js/notes-admin.js?v=20261009-3"></script>
+  <script defer src="assets/js/comments-admin.js?v=20261009-3"></script>
 </head>
 
 <body class="notes-page admin-page">
@@ -110,16 +110,6 @@
                 <button id="write-button" type="button" class="editor-tab is-active">Write</button>
                 <button id="preview-button" type="button" class="editor-tab">Preview</button>
               </div>
-              <button id="download-note" type="button" class="editor-download" aria-label="Download .wmd"
-                title="Download .wmd">
-                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="19" height="19"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <path d="m7 10 5 5 5-5" />
-                  <path d="M12 15V3" />
-                </svg>
-              </button>
             </div>
 
             <div id="editor-pane" class="editor-pane">
@@ -148,9 +138,24 @@
     </section>
     <section id="admin-comments-panel" class="comments-admin-overlay" role="dialog" aria-modal="true" aria-labelledby="comments-admin-heading" hidden>
       <div class="comments-admin-dialog">
-        <div class="comments-admin-top"><div><p class="eyebrow">Moderation</p><h2 id="comments-admin-heading">Note comments</h2></div><button type="button" id="admin-comments-close" class="button">Close</button></div>
-        <p id="admin-comments-message" class="notes-message" role="status" hidden></p>
-        <div class="comments-admin-filters"><label for="admin-comments-filter">Show</label><select id="admin-comments-filter"><option value="pending">Awaiting approval</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></select><button id="admin-comments-refresh" type="button" class="button">Refresh</button></div>
+        <header class="comments-admin-top">
+          <div>
+            <p class="comments-admin-kicker">Notes · moderation</p>
+            <h2 id="comments-admin-heading">Comments</h2>
+          </div>
+          <button type="button" id="admin-comments-close" class="comment-ui-button comment-ui-subtle">Close</button>
+        </header>
+        <p class="comments-admin-help">New comments need your approval. <strong>Hide</strong> takes a published comment off the page without deleting it. <strong>Delete</strong> removes it permanently.</p>
+        <p id="admin-comments-message" class="comments-ui-message" role="status" hidden></p>
+        <div class="comments-admin-tools">
+          <div class="comments-admin-filters" role="group" aria-label="Filter comments">
+            <button type="button" data-filter="all" class="is-current">All <span id="comments-all-count"></span></button>
+            <button type="button" data-filter="pending">Pending <span id="comments-pending-count"></span></button>
+            <button type="button" data-filter="approved">Published <span id="comments-approved-count"></span></button>
+            <button type="button" data-filter="rejected">Hidden <span id="comments-rejected-count"></span></button>
+          </div>
+          <button id="admin-comments-refresh" class="comment-ui-button comment-ui-subtle" type="button">Refresh</button>
+        </div>
         <div id="admin-comments-list" class="comments-admin-list"></div>
       </div>
     </section>
