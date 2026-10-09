@@ -18,6 +18,8 @@ jobs:
           node-version: '22'
       - name: Check JavaScript syntax
         run: |
+          node --check server/comment-mailer.js
+          node --check server/comment-mailer.test.js
           node --check server/comments.js
           node --check server/comments.test.js
           node --check assets/js/comment-editor.js
@@ -29,4 +31,4 @@ jobs:
           node --check server/notes-server.js
           node --check assets/js/notes-admin.js
       - name: Run comments tests
-        run: node --test server/comments.test.js server/tab-sessions.test.js
+        run: node --test server/comments.test.js server/comment-mailer.test.js server/tab-sessions.test.js
