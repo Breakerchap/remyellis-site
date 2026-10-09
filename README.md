@@ -341,6 +341,26 @@ works. In the private `/etc/remy-notes.env`, configure:
     COMMENTS_SENDMAIL_PATH=/usr/bin/msmtp
     COMMENTS_MSMTP_CONFIG=/var/lib/remy-notes/msmtp.conf
     NOTES_SUBSCRIBE_FROM=notifications@remyellis.au
+    NOTES_SUBSCRIBE_NOTIFY_EMAIL=remy@remyellis.au
+
+After a reader confirms their subscription, a notification is emailed to
+`NOTES_SUBSCRIBE_NOTIFY_EMAIL` (or, if omitted, the existing
+`COMMENTS_NOTIFY_EMAIL`). Pending/unconfirmed signups do not trigger
+notifications. Notifications use the same msmtp transport and retry queue
+as Notes update emails, and are recorded in `notes-subscribers.json`.
+Existing subscriber data is upgraded automatically in place.
+
+To list active subscribers on the Pi:
+
+    sudo jq -r '.subscribers[] | select(.status == "active") | .email' /var/lib/remy-notes/notes-subscribers.json
+
+To count them:
+
+    sudo jq '[.subscribers[] | select(.status == "active")] | length' /var/lib/remy-notes/notes-subscribers.json
+
+To check inactive or pending addresses, inspect `subscribers[].status` in
+the same private file. Never expose the file through the public website.
+After updating the repository and environment file, restart `remy-notes.service`.
 
 The sender address must also be authorised in your msmtp/Google Workspace
 settings. If the mail transport or sending address is missing, the subscribe

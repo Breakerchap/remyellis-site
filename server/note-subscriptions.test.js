@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createNoteSubscriptions, composeEmail, validEmail } = require('./note-subscriptions');
 
-function setup() {
+function setup(options = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notes-subscribe-'));
   const file = path.join(dir, 'private', 'notes-subscribers.json');
   const published = { id: 'note-1', slug: 'stacking', title: 'The Stacking Problem', status: 'published' };
@@ -27,6 +27,7 @@ function setup() {
       NOTES_SUBSCRIBE_FROM: 'notifications@remyellis.au',
       COMMENTS_SENDMAIL_PATH: '/usr/bin/msmtp',
       COMMENTS_MSMTP_CONFIG: '/var/lib/remy-notes/msmtp.conf',
+      ...(options.notifyEmail ? { COMMENTS_NOTIFY_EMAIL: options.notifyEmail } : {}),
     },
     now: () => clock,
     startTimer: false,
@@ -98,6 +99,48 @@ test('double opt-in: only confirmed recipients receive initial-publication updat
   assert.equal(m.mailer.enqueuePublishedNote({ id: 'note-2', title: 'Next', slug: 'next' }), 0);
   assert.equal(m.mailer.confirm(confirmationToken), false);
   assert.equal(m.mailer.unsubscribe('0'.repeat(64)), false);
+});
+
+
+test('owner is notified only after confirmation, with retry and no duplicate notifications', async t => {
+  const m = setup({ notifyEmail: 'remy@remyellis.au' }); t.after(m.cleanup);
+  m.mailer.subscribe('person@example.com', 'ip-owner');
+  await m.mailer.flush();
+  assert.equal(m.sent.length, 1);
+  assert.doesNotMatch(m.sent[0].raw, /New confirmed Notes subscriber/);
+
+  const token = m.read().subscribers[0].confirmToken;
+  assert.ok(m.mailer.confirm(token));
+  assert.equal(m.read().ownerNotices.length, 1);
+  assert.equal(m.mailer.confirm(token), false);
+
+  m.breakSmtp(true);
+  await m.mailer.flush();
+  assert.equal(m.read().ownerNotices[0].status, 'queued');
+  assert.ok(m.read().ownerNotices[0].retryAt > m.time());
+
+  m.breakSmtp(false);
+  await m.mailer.flush();
+  assert.equal(m.sent.length, 1, 'must respect retry delay');
+  m.tick(61000);
+  await m.mailer.flush();
+  assert.equal(m.sent.length, 2);
+  assert.match(m.sent[1].raw, /To: remy@remyellis.au/);
+  assert.match(m.sent[1].raw, /New confirmed Notes subscriber/);
+  assert.match(m.sent[1].raw, /Email: person@example.com/);
+  assert.equal(m.read().ownerNotices[0].status, 'sent');
+  await m.mailer.flush();
+  assert.equal(m.sent.length, 2, 'successful notification must not repeat');
+
+  // A genuine new opt-in after unsubscribing should generate another notice.
+  assert.ok(m.mailer.unsubscribe(m.read().subscribers[0].unsubscribeToken));
+  m.tick(16 * 60 * 1000);
+  m.mailer.subscribe('person@example.com', 'ip-owner');
+  await m.mailer.flush();
+  assert.ok(m.mailer.confirm(m.read().subscribers[0].confirmToken));
+  await m.mailer.flush();
+  assert.equal(m.read().ownerNotices.length, 2);
+  assert.equal(m.sent.filter(m => /Subject: New confirmed Notes subscriber/.test(m.raw)).length, 2);
 });
 
 test('subscription endpoint gives generic response without listing email addresses', async t => {

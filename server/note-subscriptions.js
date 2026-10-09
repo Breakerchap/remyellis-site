@@ -67,6 +67,9 @@ function createNoteSubscriptions({
   const config = environment.COMMENTS_MSMTP_CONFIG || '';
   const enabled = validEmail(from) && transport.startsWith('/') &&
     (!config || config.startsWith('/'));
+  // Reuse the comment moderation inbox unless a separate destination is specified.
+  const notifyTo = environment.NOTES_SUBSCRIBE_NOTIFY_EMAIL || environment.COMMENTS_NOTIFY_EMAIL || '';
+  const notifyEnabled = enabled && validEmail(notifyTo);
   const args = config ? ['--file=' + config, '-t', '-i'] : ['-t', '-i'];
   const site = new URL(siteUrl);
   const attempts = new Map();
@@ -76,12 +79,15 @@ function createNoteSubscriptions({
   function read() {
     fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
     if (!fs.existsSync(file)) {
-      fs.writeFileSync(file, JSON.stringify({ version: 1, subscribers: [], deliveries: [] }, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
+      fs.writeFileSync(file, JSON.stringify({ version: 1, subscribers: [], deliveries: [], ownerNotices: [] }, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
     }
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (!data || data.version !== 1 || !Array.isArray(data.subscribers) || !Array.isArray(data.deliveries)) {
       throw new Error('Unsupported subscription data format.');
     }
+    // Existing version 1 files predate owner notifications.
+    if (data.ownerNotices === undefined) data.ownerNotices = [];
+    if (!Array.isArray(data.ownerNotices)) throw new Error('Invalid subscription notification queue.');
     return data;
   }
   function write(data) {
@@ -90,7 +96,7 @@ function createNoteSubscriptions({
     try { fs.renameSync(temp, file); }
     finally { if (fs.existsSync(temp)) fs.unlinkSync(temp); }
   }
-  function postMail(to, message) {
+  function postMail(message) {
     return send(transport, args, message);
   }
   function subscribe(email, ip) {
@@ -140,7 +146,15 @@ function createNoteSubscriptions({
     subscriber.confirmExpires = null;
     subscriber.confirmMail = null;
     subscriber.confirmedAt = new Date(now()).toISOString();
+    // Notify only after opt-in confirmation, never for an unverified address.
+    if (notifyEnabled) {
+      data.ownerNotices.push({
+        id: crypto.randomUUID(), subscriberId: subscriber.id,
+        status: 'queued', attempts: 0, createdAt: now(),
+      });
+    }
     write(data);
+    schedule();
     return true;
   }
 
@@ -193,20 +207,30 @@ function createNoteSubscriptions({
           pending.push({ kind: 'note', id: delivery.id });
         }
       }
+      if (notifyEnabled) {
+        for (const notice of snapshot.ownerNotices) {
+          if (notice.status === 'queued' && (!notice.retryAt || notice.retryAt <= now())) {
+            pending.push({ kind: 'owner', id: notice.id });
+          }
+        }
+      }
       for (const job of pending.slice(0, 15)) {
         const data = read();
+        const delivery = job.kind === 'note' ? data.deliveries.find(d => d.id === job.id) : null;
+        const ownerNotice = job.kind === 'owner' ? data.ownerNotices.find(n => n.id === job.id) : null;
         const subscriber = job.kind === 'confirm'
           ? data.subscribers.find(s => s.id === job.id && s.status === 'pending')
-          : data.subscribers.find(s => s.id === data.deliveries.find(d => d.id === job.id)?.subscriberId && s.status === 'active');
+          : job.kind === 'note'
+            ? data.subscribers.find(s => s.id === delivery?.subscriberId && s.status === 'active')
+            : data.subscribers.find(s => s.id === ownerNotice?.subscriberId);
         if (!subscriber) {
-          if (job.kind === 'note') {
-            data.deliveries = data.deliveries.filter(d => d.id !== job.id);
-            write(data);
-          }
+          if (job.kind === 'note') data.deliveries = data.deliveries.filter(d => d.id !== job.id);
+          if (job.kind === 'owner') data.ownerNotices = data.ownerNotices.filter(n => n.id !== job.id);
+          if (job.kind !== 'confirm') write(data);
           continue;
         }
-        const delivery = data.deliveries.find(d => d.id === job.id);
-        const currentJob = job.kind === 'confirm' ? subscriber.confirmMail : delivery;
+        const currentJob = job.kind === 'confirm' ? subscriber.confirmMail
+          : job.kind === 'note' ? delivery : ownerNotice;
         if (!currentJob || currentJob.status !== 'queued') continue;
         if (currentJob.retryAt && currentJob.retryAt > now()) continue;
         let message;
@@ -218,6 +242,19 @@ function createNoteSubscriptions({
             text: 'You (or someone using this email address) requested updates when I publish new Notes.\n\n' +
               'Confirm your subscription:\n' + link + '\n\n' +
               'If you did not request this, ignore this email. The link expires in 48 hours.\n\n– Remy Ellis',
+          });
+        } else if (job.kind === 'owner') {
+          message = composeEmail({
+            from, to: notifyTo, subject: 'New confirmed Notes subscriber',
+            text: [
+              'Someone has confirmed a subscription to Notes.',
+              '',
+              'Email: ' + subscriber.email,
+              'Confirmed: ' + new Date(ownerNotice.createdAt).toISOString(),
+              'Active subscribers: ' + data.subscribers.filter(s => s.status === 'active').length,
+              '',
+              'The full subscriber list is stored privately in notes-subscribers.json.',
+            ].join('\n'),
           });
         } else {
           const note = readNotes().notes.find(n => n.id === delivery.noteId && n.status === 'published');
@@ -241,12 +278,15 @@ function createNoteSubscriptions({
         }
 
         try {
-          await postMail(subscriber.email, message);
+          await postMail(message);
           // Re-read to avoid resurrecting an unsubscribe while SMTP was in flight.
           const fresh = read();
           if (job.kind === 'confirm') {
             const target = fresh.subscribers.find(s => s.id === job.id && s.status === 'pending');
             if (target && target.confirmMail?.status === 'queued') target.confirmMail = { status: 'sent', sentAt: now() };
+          } else if (job.kind === 'owner') {
+            const target = fresh.ownerNotices.find(n => n.id === job.id);
+            if (target?.status === 'queued') Object.assign(target, { status: 'sent', sentAt: now(), retryAt: null });
           } else {
             const target = fresh.deliveries.find(d => d.id === job.id);
             if (target?.status === 'queued') Object.assign(target, { status: 'sent', sentAt: now(), retryAt: null });
@@ -257,7 +297,9 @@ function createNoteSubscriptions({
           const fresh = read();
           const target = job.kind === 'confirm'
             ? fresh.subscribers.find(s => s.id === job.id)?.confirmMail
-            : fresh.deliveries.find(d => d.id === job.id);
+            : job.kind === 'owner'
+              ? fresh.ownerNotices.find(n => n.id === job.id)
+              : fresh.deliveries.find(d => d.id === job.id);
           if (target?.status === 'queued') {
             target.attempts = (target.attempts || 0) + 1;
             target.retryAt = now() + Math.min(3600000, 60000 * 2 ** Math.min(target.attempts - 1, 6));
