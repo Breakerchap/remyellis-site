@@ -164,3 +164,99 @@ To add a paper, copy an `<article class="publication">...</article>` block in th
 To add a software project, copy one `<article class="project-card">...</article>` block in the Software section.
 
 To add a story or film, copy an `<article>...</article>` block from the Writing section.
+
+
+Moderated comments on Notes
+---------------------------
+
+Individual public notes display a comment thread. Visitors supply only a name and
+a comment; no email address or account is requested. Replies are supported, with
+one level of nesting. Every anonymous comment and reply starts as **pending** and
+is invisible to the public until approved. Comments remain linked to the note's
+internal ID, so changing a note slug does not lose its discussion.
+
+Comments deliberately use a **restricted WMD subset**: headings (# through ###),
+*bold*, _italics_, links, unordered lists, block quotes, inline and fenced code,
+plain prose, and maths rendered by KaTeX. The public comments compiler always
+escapes HTML and never executes WMD configuration, custom styles, embeds, CSS
+or JavaScript. It does not use the unrestricted Notes compiler.
+
+The Notes admin page has a **Comments** button in the header, with the number of
+pending comments. From that inbox the owner can approve, reject or permanently
+delete submissions, or publish replies. Owner replies are authenticated via the
+existing admin session, are published immediately, and display the Signature.png
+avatar and a verified author badge. Display names do not confer author privileges.
+
+### Turnstile setup
+
+Create a **Managed** Cloudflare Turnstile widget with hostname
+`remyellis.au` (and `www.remyellis.au` if serving that hostname).
+Cloudflare Turnstile's Free plan permits unlimited verification requests.
+Add the values below to the **private** `/etc/remy-notes.env` file used
+by the systemd service (never commit the secret key):
+
+    COMMENTS_TURNSTILE_SITE_KEY=the_public_site_key
+    COMMENTS_TURNSTILE_SECRET=the_private_secret_key
+
+Reload the service after changing the environment:
+
+    sudo systemctl restart remy-notes.service
+
+If either value is missing, visitor submissions are **disabled**, but published
+comments remain visible. The server verifies every visitor's Turnstile token
+against Cloudflare's Siteverify endpoint, validates its hostname, and rejects
+missing, expired or reused tokens. The client widget alone is not trusted.
+
+If the website legitimately accepts comments on another domain, list its host
+name(s) in `COMMENTS_ALLOWED_HOSTNAMES` as a comma-separated value. Never
+turn off hostname validation for production.
+
+The default private data file is `comments.json` beside `NOTES_DATA_PATH`
+(usually `/var/lib/remy-notes/comments.json`). It can be overridden with:
+
+    COMMENTS_DATA_PATH=/var/lib/remy-notes/comments.json
+
+Back up **both** `notes.json` and `comments.json`. Neither belongs in Git.
+The service user needs write permission to the private data directory. The
+comments file is created with mode 0600. Deleting a note also deletes its
+comments.
+
+Anti-spam protection includes Turnstile, server-side request validation,
+a hidden honeypot, a per-IP and global hourly submission limit, a preview
+limit, and mandatory moderation. Names are 2–60 characters, comments are
+3–4000 characters. The submission limit is in-memory and resets when the
+service restarts; moderation remains mandatory regardless.
+
+### Notifications
+
+The admin Comments button has a live pending count, refreshed when you log in
+and approximately once a minute while the admin page is open. This works
+without any extra services.
+
+Optional **email notifications to the site owner only** can use a configured
+local `sendmail`-compatible program (such as msmtp in sendmail mode).
+It is not enabled automatically and does not collect visitor email addresses.
+For instance:
+
+    COMMENTS_NOTIFY_EMAIL=remy@remyellis.au
+    COMMENTS_SENDMAIL_PATH=/usr/bin/msmtp
+
+Configure the mail transport separately and test it on the Pi before relying
+on email; an unavailable mail transport does not prevent submission or
+moderation. No email is sent to visitors.
+
+### Local development and tests
+
+    npm run check
+    npm run test:comments
+
+For localhost testing of the form, Cloudflare provides dedicated test
+credentials. Set the following **only on localhost**, never in production:
+
+    COMMENTS_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+    COMMENTS_TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+
+The test credentials still use the real Siteverify HTTP endpoint. Production
+must use a separate genuine Turnstile widget. Test the full moderation flow
+locally before deploying. The comment endpoints run through the existing
+`/api/` reverse-proxy route – no new nginx location is necessary.
