@@ -19,6 +19,8 @@
   const cssInput = document.querySelector('#note-css');
   const saveButton = document.querySelector('#save-note');
   const publishButton = document.querySelector('#publish-note');
+  const notifySubscribersInput = document.querySelector('#notify-subscribers');
+  const notifySubscribersOption = document.querySelector('#notify-subscribers-option');
   const unpublishButton = document.querySelector('#unpublish-note');
   const deleteButton = document.querySelector('#delete-note');
   const statusChip = document.querySelector('#note-status');
@@ -33,6 +35,7 @@
   let notes = [];
   let currentId = null;
   let currentStatus = 'draft';
+  let previouslyPublished = false;
   let savedSnapshot = null;
   let slugWasEdited = false;
   let busy = false;
@@ -325,6 +328,8 @@
     statusChip.className = `note-status ${currentStatus === 'published' ? 'is-published' : 'is-draft'}`;
     publishButton.hidden = currentStatus === 'published';
     unpublishButton.hidden = currentStatus !== 'published';
+    notifySubscribersOption.hidden = currentStatus === 'published' || previouslyPublished;
+    if (notifySubscribersOption.hidden) notifySubscribersInput.checked = false;
     saveButton.textContent = currentStatus === 'published' ? 'Save changes' : 'Save draft';
     deleteButton.hidden = !currentId;
   }
@@ -338,6 +343,8 @@
     if (!confirmDiscardIfNeeded()) return;
     currentId = null;
     currentStatus = 'draft';
+    previouslyPublished = false;
+    notifySubscribersInput.checked = false;
     slugWasEdited = false;
     titleInput.value = '';
     dateInput.value = localToday();
@@ -366,6 +373,8 @@
       const note = data.note;
       currentId = note.id;
       currentStatus = note.status;
+      previouslyPublished = Boolean(note.publishedAt);
+      notifySubscribersInput.checked = false;
       slugWasEdited = true;
       titleInput.value = note.title;
       dateInput.value = note.date;
@@ -535,6 +544,9 @@
 
       currentId = data.note.id;
       currentStatus = data.note.status;
+      previouslyPublished = Boolean(data.note.publishedAt);
+      notifySubscribersInput.checked = false;
+      if (data.emailError) showError(data.emailError);
       savedSnapshot = snapshot();
       slugWasEdited = true;
       updateStatus();
@@ -559,7 +571,10 @@
 
     busy = true;
     try {
-      const data = await api(`/api/admin/notes/${encodeURIComponent(currentId)}/publish`, { method: 'POST' });
+      const data = await api(`/api/admin/notes/${encodeURIComponent(currentId)}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ notifySubscribers: !previouslyPublished && notifySubscribersInput.checked }),
+      });
       currentStatus = data.note.status;
       savedSnapshot = snapshot();
       updateStatus();
