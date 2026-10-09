@@ -102,7 +102,7 @@
       replyTo = comment.parentId || comment.id;
       byId('comment-reply-label').textContent = 'Replying to ' + comment.name;
       byId('comment-reply-context').hidden = false;
-      details.open = true; showStatus('');
+      details.open = true; setMode('write'); showStatus('');
       details.scrollIntoView({ block: 'center', behavior: 'smooth' });
       setTimeout(() => editor.focus(), 120);
     });
@@ -168,7 +168,11 @@
     script.onerror = () => showStatus('Spam check could not load. Please refresh the page.', true);
     document.head.append(script);
   }
-  details.addEventListener('toggle', () => { if (details.open) startChallenge(); });
+  details.addEventListener('toggle', () => {
+    if (!details.open) return;
+    editor.show(mode === 'write'); // Refresh CodeMirror after opening a collapsed form.
+    startChallenge();
+  });
 
   form.addEventListener('submit', async event => {
     event.preventDefault(); setMode('write');
