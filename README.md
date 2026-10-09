@@ -309,6 +309,54 @@ error and the journal contains a diagnostic message. Until configured, email
 is off and visitors can still submit comments for your approval. The small
 admin pending-comment count works without email.
 
+
+### Subscribe to Notes by email
+
+Readers can subscribe from the Notes listing or an individual note. This uses
+**double opt-in**: each new subscriber must confirm from their email. Public
+responses don't reveal whether an address is already subscribed. Signups are
+rate-limited by IP and globally, with a honeypot. The confirmation expires in
+48 hours.
+
+Each note is eligible for a subscription email only when it is **first
+published**, and only if the author explicitly checks **Email subscribers**
+in Notes Admin before publishing. The box defaults to unchecked. Editing a
+published note, or unpublishing and republishing, never resends that note.
+
+Update emails contain a link to the note and an unsubscribe link, plus standard
+one-click List-Unsubscribe headers. Fetching an unsubscribe link (GET) only
+shows a confirmation page; actually unsubscribing requires POST. This prevents
+email scanners from unsubscribing people by visiting a link.
+
+Subscriber addresses and queued mail are saved separately from Notes, in the
+private file `notes-subscribers.json` beside `NOTES_DATA_PATH` (normally
+`/var/lib/remy-notes/notes-subscribers.json`). The file is created with
+permissions 0600. Keep it private, do not commit it or serve it publicly,
+and include it in **private backups** of Notes data.
+
+The service reuses the existing msmtp/sendmail transport used by comments.
+For Google Workspace, a verified sender such as notifications@remyellis.au
+works. In the private `/etc/remy-notes.env`, configure:
+
+    COMMENTS_SENDMAIL_PATH=/usr/bin/msmtp
+    COMMENTS_MSMTP_CONFIG=/var/lib/remy-notes/msmtp.conf
+    NOTES_SUBSCRIBE_FROM=notifications@remyellis.au
+
+The sender address must also be authorised in your msmtp/Google Workspace
+settings. If the mail transport or sending address is missing, the subscribe
+form is hidden. You can test outgoing mail from Notes Admin > Comments.
+
+Confirmation and unsubscribe links use the existing /api/ nginx proxy,
+so no new nginx location is needed. A disk-backed mail queue retries failures.
+Sending is best-effort; an unexpected crash between SMTP delivery and queue
+acknowledgement can rarely send an update twice. Workspace SMTP has provider
+daily sending limits, so this is intended for a small personal mailing list.
+
+Suggested acceptance test after deployment: subscribe with an address you
+control, confirm, publish a brand-new test note with **Email subscribers**
+checked, receive the update, click the unsubscribe link and unsubscribe,
+then publish another note and verify no further update arrives.
+
 ### Local development and tests
 
     npm run check

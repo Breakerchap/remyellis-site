@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="assets/css/remy.css?v=20261005-1" />
   <link rel="stylesheet" href="assets/css/notes.css?v=20261005-1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.css" />
-  <link rel="stylesheet" href="assets/css/notes-admin.css?v=20261009-5" />
+  <link rel="stylesheet" href="assets/css/notes-admin.css?v=20261009-sub1" />
   <link rel="stylesheet" href="assets/css/comments.css?v=20261009-mail1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
@@ -23,7 +23,7 @@
   <script defer src="assets/js/wikimd-editor-mode.js?v=20261007-1"></script>
   <script defer src="assets/js/comment-editor.js?v=20261009-3"></script>
   <script defer src="assets/js/notes-auth.js?v=20261009-tab1"></script>
-  <script defer src="assets/js/notes-admin.js?v=20261009-tab1"></script>
+  <script defer src="assets/js/notes-admin.js?v=20261009-sub1"></script>
   <script defer src="assets/js/comments-admin.js?v=20261009-mail1"></script>
 </head>
 
@@ -83,6 +83,7 @@
             <div class="editor-actions">
               <button id="delete-note" type="button" class="admin-danger" hidden>Delete</button>
               <button id="unpublish-note" type="button" class="button" hidden>Unpublish</button>
+              <label id="notify-subscribers-option" class="notify-subscribers-option" title="Only available on the first publication. Emails are never sent for edits or republication."><input id="notify-subscribers" type="checkbox" disabled> <span id="notify-subscribers-label">Email subscribers</span></label>
               <button id="publish-note" type="button" class="button">Publish</button>
               <button id="save-note" type="submit" form="note-form" class="button primary">Save draft</button>
             </div>

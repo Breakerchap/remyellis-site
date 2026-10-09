@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "node server/dev-server.js",
     "notes-server": "node server/notes-server.js",
-    "check": "node --check server/notes-server.js && node --check server/dev-server.js && node --check assets/js/notes.js && node --check assets/js/note-page.js && node --check assets/js/wikimd-editor-mode.js && node --check assets/js/notes-admin.js && node --check server/comments.js && node --check server/comments.test.js && node --check assets/js/comment-editor.js && node --check assets/js/comments.js && node --check assets/js/comments-admin.js && node --test server/comments.test.js && node --check server/tab-sessions.js && node --check server/tab-sessions.test.js && node --check assets/js/notes-auth.js && node --test server/tab-sessions.test.js && node --check server/comment-mailer.js && node --check server/comment-mailer.test.js && node --test server/comment-mailer.test.js",
-    "test:comments": "node --test server/comments.test.js server/comment-mailer.test.js server/tab-sessions.test.js"
+    "check": "node --check server/notes-server.js && node --check server/dev-server.js && node --check assets/js/notes.js && node --check assets/js/note-page.js && node --check assets/js/wikimd-editor-mode.js && node --check assets/js/notes-admin.js && node --check server/comments.js && node --check server/comments.test.js && node --check assets/js/comment-editor.js && node --check assets/js/comments.js && node --check assets/js/comments-admin.js && node --test server/comments.test.js && node --check server/tab-sessions.js && node --check server/tab-sessions.test.js && node --check assets/js/notes-auth.js && node --test server/tab-sessions.test.js && node --check server/comment-mailer.js && node --check server/comment-mailer.test.js && node --test server/comment-mailer.test.js && node --check server/note-subscriptions.js && node --check server/note-subscriptions.test.js && node --check assets/js/note-subscriptions.js && node --test server/note-subscriptions.test.js",
+    "test:comments": "node --test server/comments.test.js server/comment-mailer.test.js server/tab-sessions.test.js",
+    "test:subscriptions": "node --test server/note-subscriptions.test.js"
   },
   "engines": {
     "node": ">=20"

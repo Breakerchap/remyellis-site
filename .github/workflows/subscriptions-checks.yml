@@ -1,0 +1,27 @@
+name: Notes subscription checks
+
+on:
+  push:
+    branches:
+      - feature/notes-email-subscriptions
+  pull_request:
+
+jobs:
+  subscriptions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check server/note-subscriptions.js
+          node --check server/note-subscriptions.test.js
+          node --check assets/js/note-subscriptions.js
+          node --check server/notes-server.js
+          node --check assets/js/notes-admin.js
+      - name: Run subscription unit tests
+        run: node --test server/note-subscriptions.test.js
