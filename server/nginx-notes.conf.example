@@ -31,3 +31,7 @@ location ^~ /api/ {
     proxy_set_header X-Forwarded-Proto $scheme;
     client_max_body_size 2m;
 }
+
+# Never expose backend source, private JSON data or Git metadata through nginx.
+location ^~ /server/ { return 404; }
+location ^~ /.git/ { return 404; }
