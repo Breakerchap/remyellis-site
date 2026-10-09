@@ -28,11 +28,15 @@ test('mod queue, public visibility, approval, verified replies, rejection and de
     COMMENTS_DATA_PATH: process.env.COMMENTS_DATA_PATH,
     COMMENTS_TURNSTILE_SITE_KEY: process.env.COMMENTS_TURNSTILE_SITE_KEY,
     COMMENTS_TURNSTILE_SECRET: process.env.COMMENTS_TURNSTILE_SECRET,
+    NOTES_SERVE_STATIC: process.env.NOTES_SERVE_STATIC,
+    NOTES_HOST: process.env.NOTES_HOST,
   };
   const oldFetch = global.fetch;
   process.env.COMMENTS_DATA_PATH = path.join(dir, 'comments.json');
   process.env.COMMENTS_TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
   process.env.COMMENTS_TURNSTILE_SECRET = '1x0000000000000000000000000000000AA';
+  process.env.NOTES_SERVE_STATIC = '1';
+  process.env.NOTES_HOST = '127.0.0.1';
   global.fetch = async () => ({ ok: true, json: async () => ({ success: true, hostname: 'test.cloudflare.com' }) });
   try {
     let response;
