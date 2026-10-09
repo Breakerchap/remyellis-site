@@ -131,7 +131,8 @@
   width: min(100%, 23rem); min-height: 0; height: 2.35rem !important;
   background: #fff !important; color: #1e3e4a !important;
   border: 1px solid #c7dce1 !important; border-radius: 5px;
-  padding: .4rem .65rem !important; font: 400 .89rem/1.5 inherit !important;
+  padding: .4rem .65rem !important; font-family: system-ui, sans-serif !important;
+  font-size: .89rem !important; font-weight: 400; line-height: 1.5 !important;
   box-shadow: none !important;
 }
 .comments-section .comment-editor-top {
@@ -146,7 +147,8 @@
   border-bottom: 2px solid transparent !important;
   border-radius: 0 !important; box-shadow: none !important;
   padding: .4rem .5rem !important; margin: 0;
-  font: 500 .78rem/1.35 inherit; letter-spacing: 0;
+  font-family: system-ui, sans-serif; font-size: .78rem; font-weight: 500;
+  line-height: 1.35; letter-spacing: 0;
   text-transform: none; background: transparent !important;
   color: #617783 !important; cursor: pointer; height: auto; min-width: 0;
 }
