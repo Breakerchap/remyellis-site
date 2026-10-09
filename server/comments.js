@@ -293,8 +293,9 @@ function createComments(options) {
       const note = findPublished(slug);
       if (!note) throw commentError('Note not found.', 404);
       if (req.method === 'GET') {
-        const comments = read().comments
-          .filter(c => c.noteId === note.id && c.status === 'approved').map(publicComment);
+        const approved = read().comments.filter(c => c.noteId === note.id && c.status === 'approved');
+        const visibleIds = new Set(approved.filter(c => !c.parentId).map(c => c.id));
+        const comments = approved.filter(c => !c.parentId || visibleIds.has(c.parentId)).map(publicComment);
         json(200, { comments });
         return true;
       }
