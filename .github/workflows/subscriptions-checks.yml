@@ -3,6 +3,7 @@ name: Notes subscription checks
 on:
   push:
     branches:
+      - main
       - feature/notes-email-subscriptions
   pull_request:
 
