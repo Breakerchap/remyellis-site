@@ -29,7 +29,11 @@
   async function api(path, method = 'GET', body) {
     const res = await fetch(path, {
       method, credentials: 'same-origin',
-      headers: { Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      headers: {
+        Accept: 'application/json',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(window.NotesTabAuth?.headers() || {}),
+      },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
     if (res.status === 204) return {};
