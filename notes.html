@@ -46,6 +46,7 @@
   <link rel="stylesheet" href="assets/css/main.css" />
   <link rel="stylesheet" href="assets/css/remy.css?v=20261005-1" />
   <link rel="stylesheet" href="assets/css/notes.css?v=20261005-1" />
+  <link rel="stylesheet" href="assets/css/note-subscriptions.css?v=20261009-1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
   <noscript>
@@ -55,6 +56,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <script defer src="assets/js/notes.js"></script>
+  <script defer src="assets/js/note-subscriptions.js?v=20261009-1"></script>
 </head>
 
 <body class="is-preload notes-page">
@@ -85,6 +87,18 @@
 
     <section class="wrapper section-shell notes-section fade-up">
       <div class="inner notes-inner">
+        <section class="notes-subscribe" aria-labelledby="notes-subscribe-heading">
+          <h2 id="notes-subscribe-heading">Get new notes by email</h2>
+          <p>Occasional emails when I publish something new. No other mail.</p>
+          <form class="notes-subscribe-form">
+            <label class="sr-only" for="subscribe-email-index">Email address</label>
+            <input id="subscribe-email-index" name="email" type="email" maxlength="254" required autocomplete="email" placeholder="Your email address">
+            <input class="notes-subscribe-trap" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <button type="submit">Subscribe</button>
+          </form>
+          <p class="notes-subscribe-status" role="status" hidden></p>
+          <p class="notes-subscribe-small">Confirm your address by email. Unsubscribe from any update.</p>
+        </section>
         <p id="notes-error" class="notes-message notes-error" hidden></p>
         <p id="notes-empty" class="notes-message" hidden>No notes here yet.</p>
         <div id="notes-list" class="notes-list" aria-live="polite">
