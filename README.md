@@ -181,11 +181,23 @@ plain prose, and maths rendered by KaTeX. The public comments compiler always
 escapes HTML and never executes WMD configuration, custom styles, embeds, CSS
 or JavaScript. It does not use the unrestricted Notes compiler.
 
-The Notes admin page has a **Comments** button in the header, with the number of
-pending comments. From that inbox the owner can approve, reject or permanently
-delete submissions, or publish replies. Owner replies are authenticated via the
-existing admin session, are published immediately, and display the Signature.png
-avatar and a verified author badge. Display names do not confer author privileges.
+The Notes admin page has a **Comments** button in the header, with a live
+pending count. The inbox defaults to **All**, with Pending, Published and Hidden
+filters. You can approve, hide, edit or delete comments, and reply directly to
+any published comment. Hiding removes it from the public note but preserves it
+for later approval; deletion is permanent and removes its replies too.
+
+To **post as Remy Ellis**, sign in through the Notes admin page, then open a
+published note in another tab on the **same origin**. The public Write a comment
+and Reply controls then post immediately as the verified author without
+Turnstile or manual approval. Other visitors must use Turnstile and always need
+approval. Your replies have the Signature.png avatar and author badge. Merely
+typing your name never grants author privileges.
+
+The public composer is collapsed by default and uses the same CodeMirror WMD
+syntax highlighting as the Notes editor. Both Write/Preview and moderation
+reply/edit editors support WMD. No visitor email addresses are collected.
+The download UI and download endpoints for notes have been removed.
 
 ### Turnstile setup
 
