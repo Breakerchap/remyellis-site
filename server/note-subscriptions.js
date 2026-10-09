@@ -292,6 +292,10 @@ function createNoteSubscriptions({
         sendJson(res, 403, { error: 'Origin rejected.' }, { 'Cache-Control': 'no-store' }); return true;
       }
       const input = await readJsonBody(req);
+      if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        sendJson(res, 400, { error: 'Invalid subscription request.' }, { 'Cache-Control': 'no-store' });
+        return true;
+      }
       if (!input.website) subscribe(input.email, clientIp(req));
       sendJson(res, 200, { message: GENERIC_MESSAGE }, { 'Cache-Control': 'no-store' });
       return true;
