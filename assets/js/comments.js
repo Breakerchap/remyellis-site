@@ -203,23 +203,44 @@
     } finally { submitButton.disabled = false; }
   });
 
+  function applyLoginState(settings) {
+    config = settings;
+    const owner = Boolean(config.owner);
+    byId('comment-name-row').hidden = owner;
+    nameField.required = !owner;
+    byId('comment-owner-row').hidden = !owner;
+    byId('comment-turnstile').hidden = owner;
+    byId('comment-compose-intro').textContent = owner
+      ? 'Signed in as the site author. Your comments publish immediately.'
+      : 'Comments appear once approved. No account or email needed.';
+    submitButton.textContent = owner ? 'Post as Remy Ellis' : 'Submit for approval';
+    submitButton.disabled = !owner && !config.enabled;
+    if (!owner && !config.enabled) {
+      showStatus('Comments are temporarily unavailable.', true);
+    } else if (byId('comment-status').textContent === 'Comments are temporarily unavailable.') {
+      showStatus('');
+    }
+    if (!owner && details.open) startChallenge();
+  }
+
+  async function checkLoginState() {
+    applyLoginState(await api('/api/comments/config'));
+  }
+
   async function initialise() {
-    try {
-      config = await api('/api/comments/config');
-      if (config.owner) {
-        byId('comment-name-row').hidden = true;
-        nameField.required = false;
-        byId('comment-owner-row').hidden = false;
-        byId('comment-compose-intro').textContent = 'Signed in as the site author. Your comments publish immediately.';
-        submitButton.textContent = 'Post as Remy Ellis';
-      } else if (!config.enabled) {
-        showStatus('Comments are temporarily unavailable.', true);
-        submitButton.disabled = true;
-      }
-    } catch (error) { showStatus(error.message, true); }
-    try { await refresh(); } catch (error) {
-      errorBox.hidden = false; errorBox.textContent = error.message;
+    try { await checkLoginState(); }
+    catch (error) { showStatus(error.message, true); }
+    try { await refresh(); }
+    catch (error) {
+      errorBox.hidden = false;
+      errorBox.textContent = error.message;
     }
   }
+
+  // Back/Forward Cache can restore this page without rerunning its scripts.
+  // Refresh the author state after returning from the admin page.
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) checkLoginState().catch(() => {});
+  });
   initialise();
 })();
