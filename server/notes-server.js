@@ -506,6 +506,11 @@ ${safeStyleText(note.customCss || '')}
         <article id="note-content" class="note-body">
 ${sanitiseRenderedHtml(rendered.html)}
         </article>
+        <section id="comments" class="comments-section" data-note-slug="${escapeHtml(note.slug)}" aria-label="Comments">
+          <h2>Comments</h2>
+          <p class="notes-message">Loading comments…</p>
+        </section>
+        <p><a class="text-link" href="/notes.html">← All notes</a></p>
         <section class="notes-subscribe" aria-labelledby="notes-subscribe-heading">
           <h2 id="notes-subscribe-heading">Get new notes by email</h2>
           <p>Occasional emails when I publish something new. No other mail.</p>
@@ -516,13 +521,7 @@ ${sanitiseRenderedHtml(rendered.html)}
             <button type="submit">Subscribe</button>
           </form>
           <p class="notes-subscribe-status" role="status" hidden></p>
-          <p class="notes-subscribe-small">Confirm your address by email. Unsubscribe in one click from any update.</p>
         </section>
-        <section id="comments" class="comments-section" data-note-slug="${escapeHtml(note.slug)}" aria-label="Comments">
-          <h2>Comments</h2>
-          <p class="notes-message">Loading comments…</p>
-        </section>
-        <p><a class="text-link" href="/notes.html">← All notes</a></p>
       </div>
     </section>
   </div>
