@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const { renderFragment: renderWmdFragment } = require('wmd');
 const { createComments } = require('./comments');
+const { createTabSessions } = require('./tab-sessions');
 
 const HOST = process.env.NOTES_HOST || '127.0.0.1';
 const PORT = Number(process.env.NOTES_PORT || 8790);
@@ -16,7 +17,7 @@ const SECURE_COOKIE = process.env.NOTES_SECURE_COOKIE !== '0';
 const SERVE_STATIC = process.env.NOTES_SERVE_STATIC === '1';
 const SITE_ROOT = path.resolve(__dirname, '..');
 const SITE_URL = (process.env.SITE_URL || 'https://remyellis.au').replace(/\/+$/, '');
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 2 * 60 * 60 * 1000; // Two hours of inactivity.
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const MAX_LOGIN_FAILURES_PER_IP = 5;
@@ -26,7 +27,6 @@ const GLOBAL_FAILURE_THRESHOLD = 25;
 const GLOBAL_SLOW_MODE_MS = 15 * 60 * 1000;
 const GLOBAL_FAILURE_DELAY_MS = 10 * 1000;
 const LOGIN_FAILURE_DELAYS_MS = [1000, 2000, 5000, 10000];
-const COOKIE_NAME = 'remy_notes_session';
 
 if (!ADMIN_PASSWORD) {
   console.error('NOTES_ADMIN_PASSWORD must be set.');
@@ -38,7 +38,7 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   process.exit(1);
 }
 
-const sessions = new Map();
+const tabSessions = createTabSessions({ ttlMs: SESSION_TTL_MS, secure: SECURE_COOKIE });
 const loginAttempts = new Map();
 const globalLoginFailures = [];
 let globalSlowModeUntil = 0;
@@ -153,40 +153,8 @@ function writeStore(store) {
   fs.renameSync(tempPath, DATA_PATH);
 }
 
-function parseCookies(req) {
-  const result = {};
-  const header = req.headers.cookie || '';
-  for (const part of header.split(';')) {
-    const index = part.indexOf('=');
-    if (index === -1) continue;
-    const key = part.slice(0, index).trim();
-    const value = part.slice(index + 1).trim();
-    if (key) result[key] = decodeURIComponent(value);
-  }
-  return result;
-}
-
-function sessionCookie(token, maxAgeSeconds = Math.floor(SESSION_TTL_MS / 1000)) {
-  const secure = SECURE_COOKIE ? '; Secure' : '';
-  return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict${secure}; Max-Age=${maxAgeSeconds}`;
-}
-
-function expireSessionCookie() {
-  const secure = SECURE_COOKIE ? '; Secure' : '';
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict${secure}; Max-Age=0`;
-}
-
 function getSession(req) {
-  const token = parseCookies(req)[COOKIE_NAME];
-  if (!token) return null;
-  const session = sessions.get(token);
-  if (!session) return null;
-  if (session.expiresAt <= Date.now()) {
-    sessions.delete(token);
-    return null;
-  }
-  session.expiresAt = Date.now() + SESSION_TTL_MS;
-  return { token, ...session };
+  return tabSessions.get(req);
 }
 
 function requireAuth(req, res) {
@@ -501,6 +469,7 @@ ${safeStyleText(note.customCss || '')}
   <script defer src="/assets/js/note-page.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.js"></script>
   <script defer src="/assets/js/wikimd-editor-mode.js"></script>
+  <script defer src="/assets/js/notes-auth.js?v=20261009-tab1"></script>
   <script defer src="/assets/js/comment-editor.js?v=20261009-3"></script>
   <script defer src="/assets/js/comments.js?v=20261009-3"></script>
 </head>
@@ -887,11 +856,10 @@ async function handle(req, res) {
     }
 
     loginAttempts.delete(ip);
-    const token = crypto.randomBytes(32).toString('base64url');
-    sessions.set(token, { expiresAt: Date.now() + SESSION_TTL_MS });
-    return sendJson(res, 200, { authenticated: true }, {
+    const { token, tabProof } = tabSessions.create();
+    return sendJson(res, 200, { authenticated: true, tabProof }, {
       'Cache-Control': 'no-store',
-      'Set-Cookie': sessionCookie(token),
+      'Set-Cookie': tabSessions.cookie(token),
     });
   }
 
@@ -900,9 +868,8 @@ async function handle(req, res) {
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/logout') {
-    const session = getSession(req);
-    if (session) sessions.delete(session.token);
-    return sendNoContent(res, { 'Set-Cookie': expireSessionCookie() });
+    tabSessions.destroy(req);
+    return sendNoContent(res, { 'Set-Cookie': tabSessions.expiredCookie() });
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/session') {
@@ -1090,9 +1057,7 @@ const server = http.createServer((req, res) => {
 
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
-  for (const [token, session] of sessions.entries()) {
-    if (session.expiresAt <= now) sessions.delete(token);
-  }
+  tabSessions.prune();
   for (const [ip, state] of loginAttempts.entries()) {
     const windowExpired = state.windowStartedAt + LOGIN_WINDOW_MS <= now;
     const blockExpired = !state.blockedUntil || state.blockedUntil <= now;
