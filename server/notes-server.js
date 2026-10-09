@@ -915,6 +915,11 @@ async function handle(req, res) {
     return sendJson(res, 200, { rendered }, { 'Cache-Control': 'no-store' });
   }
 
+  if (req.method === 'GET' && pathname === '/api/admin/notes-subscriptions/status') {
+    if (!requireAuth(req, res)) return;
+    return sendJson(res, 200, subscriptions.status(), { 'Cache-Control': 'no-store' });
+  }
+
   if (req.method === 'GET' && pathname === '/api/admin/notes') {
     if (!requireAuth(req, res)) return;
     const store = readStore();
