@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { spawn } = require('node:child_process');
+const { createCommentMailer } = require('./comment-mailer');
 
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_PER_IP = 5;
@@ -229,30 +229,12 @@ function createComments(options) {
     }
   }
 
-  function notify(note, comment) {
-    const email = process.env.COMMENTS_NOTIFY_EMAIL || '';
-    const sendmail = process.env.COMMENTS_SENDMAIL_PATH || '';
-    if (!/^[^\s@\r\n]+@[^\s@\r\n]+\.[^\s@\r\n]+$/.test(email) || !sendmail) return;
-    const safeTitle = note.title.replace(/[\r\n]/g, ' ').slice(0, 140);
-    const safeName = comment.name.replace(/[\r\n]/g, ' ');
-    const subject = 'New Notes comment awaiting approval';
-    const body = 'A new comment is awaiting moderation.\n\nNote: ' + safeTitle +
-      '\nBy: ' + safeName + '\n\n' + comment.body + '\n\n' +
-      options.siteUrl + '/notes-admin.html#comments\n';
-    const message = 'To: ' + email + '\nSubject: ' + subject +
-      '\nContent-Type: text/plain; charset=UTF-8\n\n' + body;
-    try {
-      const child = spawn(sendmail, ['-t', '-i'], { stdio: ['pipe', 'ignore', 'pipe'] });
-      let failure = '';
-      child.stderr.on('data', chunk => { failure += String(chunk).slice(0, 200); });
-      child.on('error', error => console.error('Comment email failed:', error.message));
-      child.on('close', code => { if (code) console.error('Comment email failed:', failure || 'exit ' + code); });
-      child.stdin.on('error', () => {});
-      child.stdin.end(message);
-    } catch (error) {
-      console.error('Comment email failed:', error.message);
-    }
-  }
+  const mailer = createCommentMailer({
+    readStore: read,
+    writeStore: write,
+    readNotes: options.readNotes,
+    siteUrl: options.siteUrl,
+  });
 
   function findPublished(slug) {
     return options.readNotes().notes.find(n => n.slug === slug && n.status === 'published');
@@ -337,12 +319,13 @@ function createComments(options) {
       const comment = {
         id: crypto.randomUUID(), noteId: note.id, parentId, name, body,
         author: owner, status: owner ? 'approved' : 'pending', createdAt: new Date().toISOString(),
+        ...(!owner ? { emailNotice: { status: 'queued', attempts: 0 } } : {}),
       };
       // Reload after network verification so writes from other requests are not lost.
       const fresh = read();
       fresh.comments.push(comment);
       write(fresh);
-      if (!owner) notify(note, comment);
+      if (!owner) mailer.schedule();
       json(201, {
         pending: !owner,
         message: owner ? 'Your author comment is published.' : 'Thanks – your comment is awaiting approval.',
@@ -356,6 +339,21 @@ function createComments(options) {
       throw commentError('Origin rejected.', 403);
     }
     const data = read();
+    if (req.method === 'GET' && pathname === '/api/admin/comments/mail-status') {
+      json(200, { mail: mailer.status() });
+      return true;
+    }
+    if (req.method === 'POST' && pathname === '/api/admin/comments/test-email') {
+      try {
+        await mailer.sendTest();
+      } catch (error) {
+        console.error('Notes comment test email failed:', error.message);
+        json(503, { error: 'Test email could not be delivered. Check the Notes service logs and mail configuration.' });
+        return true;
+      }
+      json(200, { message: 'Test email sent to the configured address.' });
+      return true;
+    }
     if (req.method === 'GET' && pathname === '/api/admin/comments') {
       const comments = serializeAdmin(data);
       json(200, { comments, pendingCount: comments.filter(c => c.status === 'pending').length });
