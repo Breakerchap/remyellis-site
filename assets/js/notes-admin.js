@@ -233,14 +233,16 @@
   }
 
   async function api(path, options = {}) {
+    const { headers: extraHeaders = {}, ...requestOptions } = options;
     const response = await fetch(path, {
       credentials: 'same-origin',
+      ...requestOptions,
       headers: {
         Accept: 'application/json',
         ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(options.headers || {}),
+        ...(window.NotesTabAuth?.headers() || {}),
+        ...extraHeaders,
       },
-      ...options,
     });
 
     if (response.status === 401 && path !== '/api/admin/login') {
@@ -267,6 +269,7 @@
   }
 
   function showLogin() {
+    window.NotesTabAuth?.clear();
     loginView.hidden = false;
     appView.hidden = true;
     logoutButton.hidden = true;
@@ -623,10 +626,11 @@
     event.preventDefault();
     loginError.hidden = true;
     try {
-      await api('/api/admin/login', {
+      const session = await api('/api/admin/login', {
         method: 'POST',
         body: JSON.stringify({ password: passwordInput.value }),
       });
+      window.NotesTabAuth.save(session.tabProof);
       passwordInput.value = '';
       showApp();
       await refreshList();
