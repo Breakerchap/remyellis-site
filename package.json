@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server/dev-server.js",
     "notes-server": "node server/notes-server.js",
-    "check": "node --check server/notes-server.js && node --check server/dev-server.js && node --check assets/js/notes.js && node --check assets/js/note-page.js && node --check assets/js/wikimd-editor-mode.js && node --check assets/js/notes-admin.js && node --check server/comments.js && node --check server/comments.test.js && node --check assets/js/comments.js && node --check assets/js/comments-admin.js && node --test server/comments.test.js",
+    "check": "node --check server/notes-server.js && node --check server/dev-server.js && node --check assets/js/notes.js && node --check assets/js/note-page.js && node --check assets/js/wikimd-editor-mode.js && node --check assets/js/notes-admin.js && node --check server/comments.js && node --check server/comments.test.js && node --check assets/js/comment-editor.js && node --check assets/js/comments.js && node --check assets/js/comments-admin.js && node --test server/comments.test.js",
     "test:comments": "node --test server/comments.test.js"
   },
   "engines": {
