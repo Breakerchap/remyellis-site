@@ -454,7 +454,7 @@ function renderNotePage(note) {
   <link rel="stylesheet" href="/assets/css/notes.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.css" />
   <link rel="stylesheet" href="/assets/css/comments.css?v=20261009-4" />
-  <link rel="stylesheet" href="/assets/css/note-subscriptions.css?v=20261009-1" />
+  <link rel="stylesheet" href="/assets/css/note-subscriptions.css?v=20261009-2" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
   <style>
