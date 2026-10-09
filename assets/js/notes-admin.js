@@ -21,6 +21,7 @@
   const publishButton = document.querySelector('#publish-note');
   const notifySubscribersInput = document.querySelector('#notify-subscribers');
   const notifySubscribersOption = document.querySelector('#notify-subscribers-option');
+  const notifySubscribersLabel = document.querySelector('#notify-subscribers-label');
   const unpublishButton = document.querySelector('#unpublish-note');
   const deleteButton = document.querySelector('#delete-note');
   const statusChip = document.querySelector('#note-status');
@@ -563,6 +564,19 @@
     }
   }
 
+  async function loadSubscriberStatus() {
+    try {
+      const status = await api('/api/admin/notes-subscriptions/status');
+      notifySubscribersInput.disabled = !status.configured || !status.active;
+      notifySubscribersLabel.textContent = status.configured
+        ? 'Email subscribers (' + status.active + ' confirmed)'
+        : 'Email subscribers (mail not configured)';
+    } catch {
+      notifySubscribersInput.disabled = true;
+      notifySubscribersLabel.textContent = 'Email subscribers (unavailable)';
+    }
+  }
+
   async function publishCurrent() {
     if (busy) return;
     let note = null;
@@ -649,6 +663,7 @@
       passwordInput.value = '';
       showApp();
       await refreshList();
+      await loadSubscriberStatus();
     } catch (error) {
       loginError.textContent = error.message;
       loginError.hidden = false;
@@ -707,6 +722,7 @@
       await api('/api/admin/session');
       showApp();
       await refreshList();
+      await loadSubscriberStatus();
     } catch {
       showLogin();
     }
