@@ -6,6 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const { renderFragment: renderWmdFragment } = require('wmd');
+const { createComments } = require('./comments');
 
 const HOST = process.env.NOTES_HOST || '127.0.0.1';
 const PORT = Number(process.env.NOTES_PORT || 8790);
@@ -482,6 +483,7 @@ function renderNotePage(note) {
   <link rel="stylesheet" href="/assets/css/main.css" />
   <link rel="stylesheet" href="/assets/css/remy.css" />
   <link rel="stylesheet" href="/assets/css/notes.css" />
+  <link rel="stylesheet" href="/assets/css/comments.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
   <style>
@@ -496,6 +498,7 @@ ${safeStyleText(note.customCss || '')}
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <script defer src="/assets/js/note-page.js"></script>
+  <script defer src="/assets/js/comments.js"></script>
 </head>
 
 <body class="is-preload notes-page">
@@ -527,6 +530,10 @@ ${safeStyleText(note.customCss || '')}
         <article id="note-content" class="note-body">
 ${sanitiseRenderedHtml(rendered.html)}
         </article>
+        <section id="comments" class="comments-section" data-note-slug="${escapeHtml(note.slug)}" aria-label="Comments">
+          <h2>Comments</h2>
+          <p class="notes-message">Loading comments…</p>
+        </section>
         <p class="note-download-links">Download: <a class="text-link" href="${notePath(note.slug)}.wmd" download>WMD</a> · <a class="text-link" href="${notePath(note.slug)}.html" download>HTML</a></p>
         <p><a class="text-link" href="/notes.html">← All notes</a></p>
       </div>
@@ -835,9 +842,23 @@ function serveStatic(req, res, pathname) {
   return true;
 }
 
+const comments = createComments({
+  notesDataPath: DATA_PATH,
+  siteUrl: SITE_URL,
+  readNotes: readStore,
+  sendJson,
+  sendNoContent,
+  requireAuth,
+  sameOrigin,
+  clientIp,
+  readJsonBody,
+});
+
 async function handle(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
+
+  if (await comments.route(req, res, pathname)) return;
 
   if (['GET', 'HEAD'].includes(req.method) && pathname === '/sitemap.xml') {
     const store = readStore();
@@ -1151,6 +1172,7 @@ async function handle(req, res) {
       if (index === -1) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
       store.notes.splice(index, 1);
       writeStore(store);
+      comments.deleteForNote(id);
       return sendNoContent(res);
     }
   }
