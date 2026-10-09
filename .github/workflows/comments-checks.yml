@@ -23,7 +23,10 @@ jobs:
           node --check assets/js/comment-editor.js
           node --check assets/js/comments.js
           node --check assets/js/comments-admin.js
+          node --check server/tab-sessions.js
+          node --check server/tab-sessions.test.js
+          node --check assets/js/notes-auth.js
           node --check server/notes-server.js
           node --check assets/js/notes-admin.js
       - name: Run comments tests
-        run: node --test server/comments.test.js
+        run: node --test server/comments.test.js server/tab-sessions.test.js
