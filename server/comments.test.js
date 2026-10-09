@@ -80,7 +80,7 @@ test('mod queue, public visibility, approval, verified replies, rejection and de
 
     await call('/api/admin/comments/' + commentId + '/reject', 'POST');
     publicList = await call('/api/comments/sample-note', 'GET');
-    assert.equal(publicList.data.comments.length, 1);
+    assert.equal(publicList.data.comments.length, 0); // No orphaned author replies.
     await call('/api/admin/comments/' + commentId, 'DELETE');
     publicList = await call('/api/comments/sample-note', 'GET');
     assert.equal(publicList.data.comments.length, 0);
