@@ -25,7 +25,7 @@
     '     <div class="comment-editor-top"><span>Comment <small>(WMD)</small></span><div class="comment-tabs"><button type="button" id="comment-write" class="is-active">Write</button><button type="button" id="comment-preview-button">Preview</button></div></div>',
     '     <textarea id="comment-body" name="body" minlength="3" maxlength="4000" rows="5" spellcheck="true" placeholder="Write your comment…"></textarea>',
     '     <div id="comment-preview" class="comment-content note-body" hidden></div>',
-    '     <p class="comment-format-help">WMD: <code>*bold*</code> <code>_italic_</code> <code>&#96;code&#96;</code> <code># heading</code> <code>[link](https://example.com)</code>. No HTML or custom styles.</p>',
+    '     <p class="comment-format-help">Basic WMD: <code>*bold*</code> <code>_italic_</code> <code>&#96;code&#96;</code> <code>&bsol;(maths&bsol;)</code> <code># heading</code> <code>[link](https://example.com)</code>.</p>',
     '     <div class="comment-honeypot" aria-hidden="true"><label for="comment-website">Leave blank</label><input id="comment-website" autocomplete="off" tabindex="-1"></div>',
     '     <div id="comment-turnstile" aria-label="Spam protection"></div>',
     '     <button type="submit" id="comment-submit" class="comment-ui-button comment-ui-primary">Submit for approval</button>',
