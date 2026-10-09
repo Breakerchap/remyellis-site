@@ -74,6 +74,7 @@ function renderComment(source) {
   const blocks = [];
   let paragraph = [];
   let list = [];
+  let listType = 'ul';
   let quote = [];
   let code = null;
 
@@ -82,7 +83,7 @@ function renderComment(source) {
     paragraph = [];
   }
   function flushList() {
-    if (list.length) blocks.push('<ul>' + list.map(item => '<li>' + inlineWmd(item) + '</li>').join('') + '</ul>');
+    if (list.length) blocks.push('<' + listType + '>' + list.map(item => '<li>' + inlineWmd(item) + '</li>').join('') + '</' + listType + '>');
     list = [];
   }
   function flushQuote() {
@@ -110,13 +111,18 @@ function renderComment(source) {
     }
     const heading = line.match(/^\s*(#{1,3})\s+(.+)$/);
     const bullet = line.match(/^\s*[-+]\s+(.+)$/);
+    const numbered = line.match(/^\s*\d+\.\s+(.+)$/);
     const quoted = line.match(/^\s*>\s?(.*)$/);
     if (heading) {
       flushParagraph(); flushList(); flushQuote();
       const level = heading[1].length + 2;
       blocks.push('<h' + level + '>' + inlineWmd(heading[2]) + '</h' + level + '>');
-    } else if (bullet) {
-      flushParagraph(); flushQuote(); list.push(bullet[1]);
+    } else if (bullet || numbered) {
+      flushParagraph(); flushQuote();
+      const nextType = bullet ? 'ul' : 'ol';
+      if (list.length && listType !== nextType) flushList();
+      listType = nextType;
+      list.push((bullet || numbered)[1]);
     } else if (quoted) {
       flushParagraph(); flushList(); quote.push(quoted[1]);
     } else {
