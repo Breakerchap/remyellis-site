@@ -6,6 +6,8 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const { renderFragment: renderWmdFragment } = require('wmd');
+const { createComments } = require('./comments');
+const { createTabSessions } = require('./tab-sessions');
 
 const HOST = process.env.NOTES_HOST || '127.0.0.1';
 const PORT = Number(process.env.NOTES_PORT || 8790);
@@ -15,7 +17,7 @@ const SECURE_COOKIE = process.env.NOTES_SECURE_COOKIE !== '0';
 const SERVE_STATIC = process.env.NOTES_SERVE_STATIC === '1';
 const SITE_ROOT = path.resolve(__dirname, '..');
 const SITE_URL = (process.env.SITE_URL || 'https://remyellis.au').replace(/\/+$/, '');
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 2 * 60 * 60 * 1000; // Two hours of inactivity.
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const MAX_LOGIN_FAILURES_PER_IP = 5;
@@ -25,7 +27,6 @@ const GLOBAL_FAILURE_THRESHOLD = 25;
 const GLOBAL_SLOW_MODE_MS = 15 * 60 * 1000;
 const GLOBAL_FAILURE_DELAY_MS = 10 * 1000;
 const LOGIN_FAILURE_DELAYS_MS = [1000, 2000, 5000, 10000];
-const COOKIE_NAME = 'remy_notes_session';
 
 if (!ADMIN_PASSWORD) {
   console.error('NOTES_ADMIN_PASSWORD must be set.');
@@ -37,7 +38,7 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   process.exit(1);
 }
 
-const sessions = new Map();
+const tabSessions = createTabSessions({ ttlMs: SESSION_TTL_MS, secure: SECURE_COOKIE });
 const loginAttempts = new Map();
 const globalLoginFailures = [];
 let globalSlowModeUntil = 0;
@@ -152,40 +153,8 @@ function writeStore(store) {
   fs.renameSync(tempPath, DATA_PATH);
 }
 
-function parseCookies(req) {
-  const result = {};
-  const header = req.headers.cookie || '';
-  for (const part of header.split(';')) {
-    const index = part.indexOf('=');
-    if (index === -1) continue;
-    const key = part.slice(0, index).trim();
-    const value = part.slice(index + 1).trim();
-    if (key) result[key] = decodeURIComponent(value);
-  }
-  return result;
-}
-
-function sessionCookie(token, maxAgeSeconds = Math.floor(SESSION_TTL_MS / 1000)) {
-  const secure = SECURE_COOKIE ? '; Secure' : '';
-  return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict${secure}; Max-Age=${maxAgeSeconds}`;
-}
-
-function expireSessionCookie() {
-  const secure = SECURE_COOKIE ? '; Secure' : '';
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict${secure}; Max-Age=0`;
-}
-
 function getSession(req) {
-  const token = parseCookies(req)[COOKIE_NAME];
-  if (!token) return null;
-  const session = sessions.get(token);
-  if (!session) return null;
-  if (session.expiresAt <= Date.now()) {
-    sessions.delete(token);
-    return null;
-  }
-  session.expiresAt = Date.now() + SESSION_TTL_MS;
-  return { token, ...session };
+  return tabSessions.get(req);
 }
 
 function requireAuth(req, res) {
@@ -482,6 +451,8 @@ function renderNotePage(note) {
   <link rel="stylesheet" href="/assets/css/main.css" />
   <link rel="stylesheet" href="/assets/css/remy.css" />
   <link rel="stylesheet" href="/assets/css/notes.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.css" />
+  <link rel="stylesheet" href="/assets/css/comments.css?v=20261009-4" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
   <style>
@@ -496,6 +467,11 @@ ${safeStyleText(note.customCss || '')}
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <script defer src="/assets/js/note-page.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.js"></script>
+  <script defer src="/assets/js/wikimd-editor-mode.js"></script>
+  <script defer src="/assets/js/notes-auth.js?v=20261009-tab1"></script>
+  <script defer src="/assets/js/comment-editor.js?v=20261009-3"></script>
+  <script defer src="/assets/js/comments.js?v=20261009-3"></script>
 </head>
 
 <body class="is-preload notes-page">
@@ -527,7 +503,10 @@ ${safeStyleText(note.customCss || '')}
         <article id="note-content" class="note-body">
 ${sanitiseRenderedHtml(rendered.html)}
         </article>
-        <p class="note-download-links">Download: <a class="text-link" href="${notePath(note.slug)}.wmd" download>WMD</a> · <a class="text-link" href="${notePath(note.slug)}.html" download>HTML</a></p>
+        <section id="comments" class="comments-section" data-note-slug="${escapeHtml(note.slug)}" aria-label="Comments">
+          <h2>Comments</h2>
+          <p class="notes-message">Loading comments…</p>
+        </section>
         <p><a class="text-link" href="/notes.html">← All notes</a></p>
       </div>
     </section>
@@ -548,80 +527,6 @@ ${sanitiseRenderedHtml(rendered.html)}
   <script src="/assets/js/main.js"></script>
 </body>
 </html>`;
-}
-
-function renderNoteDownloadHtml(note) {
-  const rendered = renderWikiMd(note.body);
-  const mathOptions = JSON.stringify({
-    delimiters: [
-      { left: '$$', right: '$$', display: true },
-      { left: '\\[', right: '\\]', display: true },
-      { left: '$', right: '$', display: false },
-      { left: '\\(', right: '\\)', display: false },
-    ],
-    throwOnError: false,
-  });
-
-  return `<!DOCTYPE html>
-<html lang="en-AU">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(note.title)}</title>
-  <base href="${escapeHtml(SITE_URL)}/" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
-  <style>
-    :root { color-scheme: light; }
-    body { box-sizing: border-box; max-width: 54rem; margin: 0 auto; padding: 2.5rem 1.5rem 5rem;
-      color: #23323d; background: #fff; font: 1.08rem/1.7 Georgia, "Times New Roman", serif; }
-    h1, h2, h3, h4, h5, h6 { line-height: 1.3; overflow-wrap: anywhere; }
-    h1 { font-size: 2.3rem; margin: 0 0 0.3rem; }
-    .note-date { margin: 0 0 2.2rem; color: #64727c; font: 0.9rem/1.5 system-ui, sans-serif; }
-    .note-body { overflow-wrap: anywhere; }
-    .note-body img, .note-body video, .note-body svg { max-width: 100%; height: auto; }
-    .note-body pre { overflow-x: auto; padding: 1rem; background: #f2f6f7; }
-    .note-body code { overflow-wrap: anywhere; }
-    .note-body blockquote { border-left: 3px solid #0b7f98; margin-left: 0; padding-left: 1rem; }
-    .note-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
-    .note-body th, .note-body td { border: 1px solid #cdd8de; padding: 0.4rem 0.65rem; }
-    a { color: #087c98; }
-    @media (max-width: 600px) { body { padding: 1.5rem 1rem 3rem; } h1 { font-size: 1.8rem; } }
-${safeStyleText(rendered.compilerCss)}
-${safeStyleText(note.customCss || '')}
-  </style>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-</head>
-<body>
-  <header>
-    <h1>${escapeHtml(note.title)}</h1>
-    <p class="note-date"><time datetime="${escapeHtml(note.date)}">${escapeHtml(displayDate(note.date))}</time></p>
-  </header>
-  <article id="note-content" class="note-body">${sanitiseRenderedHtml(rendered.html)}</article>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      if (window.renderMathInElement) {
-        window.renderMathInElement(document.getElementById('note-content'), ${mathOptions});
-      }
-    });
-  </script>
-</body>
-</html>
-`;
-}
-
-function sendNoteDownload(res, note, format, privateNote = false) {
-  const extension = format === 'wmd' ? 'wmd' : 'html';
-  const content = format === 'wmd' ? String(note.body || '') : renderNoteDownloadHtml(note);
-  const filename = `${slugify(note.slug || note.title)}.${extension}`;
-
-  return sendText(res, 200, content,
-    format === 'wmd' ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8', {
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': privateNote ? 'no-store' : 'no-cache',
-      'X-Robots-Tag': 'noindex, nofollow',
-      'Content-Language': 'en-AU',
-    });
 }
 
 function renderSitemap(notes) {
@@ -835,9 +740,24 @@ function serveStatic(req, res, pathname) {
   return true;
 }
 
+const comments = createComments({
+  notesDataPath: DATA_PATH,
+  siteUrl: SITE_URL,
+  readNotes: readStore,
+  sendJson,
+  sendNoContent,
+  requireAuth,
+  getSession,
+  sameOrigin,
+  clientIp,
+  readJsonBody,
+});
+
 async function handle(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
+
+  if (await comments.route(req, res, pathname)) return;
 
   if (['GET', 'HEAD'].includes(req.method) && pathname === '/sitemap.xml') {
     const store = readStore();
@@ -856,24 +776,6 @@ async function handle(req, res) {
   }
 
   if (['GET', 'HEAD'].includes(req.method)) {
-    const download = pathname.match(/^\/notes\/([^/]+)\.(wmd|html)$/);
-    if (download) {
-      let slug;
-      try {
-        slug = decodeURIComponent(download[1]);
-      } catch {
-        return sendText(res, 404, 'Note not found.', 'text/plain; charset=utf-8');
-      }
-      const note = readStore().notes.find(item => item.status === 'published' && item.slug === slug);
-      if (!note) {
-        return sendText(res, 404, 'Note not found.', 'text/plain; charset=utf-8', {
-          'Cache-Control': 'no-cache',
-          'X-Robots-Tag': 'noindex',
-        });
-      }
-      return sendNoteDownload(res, note, download[2]);
-    }
-
     const slug = routeParam(pathname, '/notes/');
     if (slug) {
       const store = readStore();
@@ -954,11 +856,10 @@ async function handle(req, res) {
     }
 
     loginAttempts.delete(ip);
-    const token = crypto.randomBytes(32).toString('base64url');
-    sessions.set(token, { expiresAt: Date.now() + SESSION_TTL_MS });
-    return sendJson(res, 200, { authenticated: true }, {
+    const { token, tabProof } = tabSessions.create();
+    return sendJson(res, 200, { authenticated: true, tabProof }, {
       'Cache-Control': 'no-store',
-      'Set-Cookie': sessionCookie(token),
+      'Set-Cookie': tabSessions.cookie(token),
     });
   }
 
@@ -967,9 +868,8 @@ async function handle(req, res) {
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/logout') {
-    const session = getSession(req);
-    if (session) sessions.delete(session.token);
-    return sendNoContent(res, { 'Set-Cookie': expireSessionCookie() });
+    tabSessions.destroy(req);
+    return sendNoContent(res, { 'Set-Cookie': tabSessions.expiredCookie() });
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/session') {
@@ -987,24 +887,6 @@ async function handle(req, res) {
 
     const rendered = renderWikiMd(body);
     return sendJson(res, 200, { rendered }, { 'Cache-Control': 'no-store' });
-  }
-
-  if (req.method === 'POST' && pathname === '/api/admin/export') {
-    if (!requireAuth(req, res)) return;
-    const input = await readJsonBody(req);
-    const downloadFormat = String(input.downloadFormat || '');
-    if (!['wmd', 'html'].includes(downloadFormat)) {
-      return sendJson(res, 400, { error: 'Choose WMD or HTML.' }, { 'Cache-Control': 'no-store' });
-    }
-
-    // Export the editor's current contents, including unsaved edits, without
-    // changing the saved note or making an unpublished draft public.
-    const note = normaliseNoteInput({
-      ...input,
-      title: input.title || 'Untitled note',
-      format: 'wikimd',
-    }, null, { notes: [] });
-    return sendNoteDownload(res, note, downloadFormat, true);
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/notes') {
@@ -1151,6 +1033,7 @@ async function handle(req, res) {
       if (index === -1) return sendJson(res, 404, { error: 'Note not found.' }, { 'Cache-Control': 'no-store' });
       store.notes.splice(index, 1);
       writeStore(store);
+      comments.deleteForNote(id);
       return sendNoContent(res);
     }
   }
@@ -1174,9 +1057,7 @@ const server = http.createServer((req, res) => {
 
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
-  for (const [token, session] of sessions.entries()) {
-    if (session.expiresAt <= now) sessions.delete(token);
-  }
+  tabSessions.prune();
   for (const [ip, state] of loginAttempts.entries()) {
     const windowExpired = state.windowStartedAt + LOGIN_WINDOW_MS <= now;
     const blockExpired = !state.blockedUntil || state.blockedUntil <= now;

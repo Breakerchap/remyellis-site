@@ -58,8 +58,16 @@
   text-transform: none;
 }
 
+/* main.css sets all buttons to white with !important (for the dark template).
+   Override that specifically for the light admin navigation. */
+.notes-topbar nav button.admin-topbar-button {
+  background: transparent !important;
+  color: var(--muted) !important;
+}
+
 .notes-topbar nav a:hover,
-.admin-topbar-button:hover {
+.notes-topbar nav button.admin-topbar-button:hover,
+.notes-topbar nav button.admin-topbar-button:focus-visible {
   border-bottom-color: var(--teal);
   color: var(--teal-deep) !important;
 }

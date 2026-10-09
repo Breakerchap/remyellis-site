@@ -1,0 +1,32 @@
+name: Notes comments checks
+
+on:
+  push:
+    branches:
+      - feature/notes-comments-moderation
+  pull_request:
+
+jobs:
+  comments:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check server/comments.js
+          node --check server/comments.test.js
+          node --check assets/js/comment-editor.js
+          node --check assets/js/comments.js
+          node --check assets/js/comments-admin.js
+          node --check server/tab-sessions.js
+          node --check server/tab-sessions.test.js
+          node --check assets/js/notes-auth.js
+          node --check server/notes-server.js
+          node --check assets/js/notes-admin.js
+      - name: Run comments tests
+        run: node --test server/comments.test.js server/tab-sessions.test.js
