@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const { renderFragment: renderWmdFragment } = require('wmd');
 const { createComments } = require('./comments');
+const { createNoteSubscriptions } = require('./note-subscriptions');
 const { createTabSessions } = require('./tab-sessions');
 
 const HOST = process.env.NOTES_HOST || '127.0.0.1';
@@ -453,6 +454,7 @@ function renderNotePage(note) {
   <link rel="stylesheet" href="/assets/css/notes.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.css" />
   <link rel="stylesheet" href="/assets/css/comments.css?v=20261009-4" />
+  <link rel="stylesheet" href="/assets/css/note-subscriptions.css?v=20261009-1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
   <style>
@@ -472,6 +474,7 @@ ${safeStyleText(note.customCss || '')}
   <script defer src="/assets/js/notes-auth.js?v=20261009-tab1"></script>
   <script defer src="/assets/js/comment-editor.js?v=20261009-3"></script>
   <script defer src="/assets/js/comments.js?v=20261009-3"></script>
+  <script defer src="/assets/js/note-subscriptions.js?v=20261009-1"></script>
 </head>
 
 <body class="is-preload notes-page">
@@ -503,6 +506,18 @@ ${safeStyleText(note.customCss || '')}
         <article id="note-content" class="note-body">
 ${sanitiseRenderedHtml(rendered.html)}
         </article>
+        <section class="notes-subscribe" aria-labelledby="notes-subscribe-heading">
+          <h2 id="notes-subscribe-heading">Get new notes by email</h2>
+          <p>Occasional emails when I publish something new. No other mail.</p>
+          <form class="notes-subscribe-form">
+            <label class="sr-only" for="subscribe-email-note">Email address</label>
+            <input id="subscribe-email-note" name="email" type="email" maxlength="254" required autocomplete="email" placeholder="Your email address">
+            <input class="notes-subscribe-trap" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <button type="submit">Subscribe</button>
+          </form>
+          <p class="notes-subscribe-status" role="status" hidden></p>
+          <p class="notes-subscribe-small">Confirm your address by email. Unsubscribe in one click from any update.</p>
+        </section>
         <section id="comments" class="comments-section" data-note-slug="${escapeHtml(note.slug)}" aria-label="Comments">
           <h2>Comments</h2>
           <p class="notes-message">Loading comments…</p>
@@ -740,6 +755,16 @@ function serveStatic(req, res, pathname) {
   return true;
 }
 
+const subscriptions = createNoteSubscriptions({
+  dataPath: process.env.NOTES_SUBSCRIPTIONS_DATA_PATH ||
+    path.join(path.dirname(DATA_PATH), 'notes-subscribers.json'),
+  siteUrl: SITE_URL,
+  readNotes: readStore,
+  readJsonBody,
+  sameOrigin,
+  clientIp,
+});
+
 const comments = createComments({
   notesDataPath: DATA_PATH,
   siteUrl: SITE_URL,
@@ -757,6 +782,7 @@ async function handle(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
 
+  if (await subscriptions.route(req, res, pathname, requestUrl, sendJson)) return;
   if (await comments.route(req, res, pathname)) return;
 
   if (['GET', 'HEAD'].includes(req.method) && pathname === '/sitemap.xml') {
@@ -1002,12 +1028,26 @@ async function handle(req, res) {
       item.order = index + 1;
     });
 
+    // Only the initial publication is eligible for mailing, and only when
+    // the owner explicitly opted in. Updating/republishing never emails again.
+    const firstPublication = !note.publishedAt;
+    const input = await readJsonBody(req);
+    const notify = firstPublication && input.notifySubscribers === true;
     note.status = 'published';
     note.order = 0;
     note.updatedAt = nowIso();
     note.publishedAt = note.publishedAt || note.updatedAt;
     writeStore(store);
-    return sendJson(res, 200, { note }, { 'Cache-Control': 'no-store' });
+    let emailsQueued = 0;
+    let emailError = null;
+    if (notify) {
+      try { emailsQueued = subscriptions.enqueuePublishedNote(note); }
+      catch (error) {
+        console.error('Could not queue Notes subscriber emails:', error);
+        emailError = 'Email delivery could not be queued. Check the Notes service logs.';
+      }
+    }
+    return sendJson(res, 200, { note, emailsQueued, emailError }, { 'Cache-Control': 'no-store' });
   }
 
   const unpublishMatch = pathname.match(/^\/api\/admin\/notes\/([^/]+)\/unpublish$/);
