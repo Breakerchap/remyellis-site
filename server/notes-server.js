@@ -483,7 +483,8 @@ function renderNotePage(note) {
   <link rel="stylesheet" href="/assets/css/main.css" />
   <link rel="stylesheet" href="/assets/css/remy.css" />
   <link rel="stylesheet" href="/assets/css/notes.css" />
-  <link rel="stylesheet" href="/assets/css/comments.css" />
+  <link rel="stylesheet" href="/assets/css/comments.css?v=20261009-2" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
   <style>
@@ -498,7 +499,9 @@ ${safeStyleText(note.customCss || '')}
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <script defer src="/assets/js/note-page.js"></script>
-  <script defer src="/assets/js/comments.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.js"></script>
+  <script defer src="/assets/js/wikimd-editor-mode.js"></script>
+  <script defer src="/assets/js/comments.js?v=20261009-2"></script>
 </head>
 
 <body class="is-preload notes-page">
@@ -534,7 +537,6 @@ ${sanitiseRenderedHtml(rendered.html)}
           <h2>Comments</h2>
           <p class="notes-message">Loading comments…</p>
         </section>
-        <p class="note-download-links">Download: <a class="text-link" href="${notePath(note.slug)}.wmd" download>WMD</a> · <a class="text-link" href="${notePath(note.slug)}.html" download>HTML</a></p>
         <p><a class="text-link" href="/notes.html">← All notes</a></p>
       </div>
     </section>
@@ -555,80 +557,6 @@ ${sanitiseRenderedHtml(rendered.html)}
   <script src="/assets/js/main.js"></script>
 </body>
 </html>`;
-}
-
-function renderNoteDownloadHtml(note) {
-  const rendered = renderWikiMd(note.body);
-  const mathOptions = JSON.stringify({
-    delimiters: [
-      { left: '$$', right: '$$', display: true },
-      { left: '\\[', right: '\\]', display: true },
-      { left: '$', right: '$', display: false },
-      { left: '\\(', right: '\\)', display: false },
-    ],
-    throwOnError: false,
-  });
-
-  return `<!DOCTYPE html>
-<html lang="en-AU">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(note.title)}</title>
-  <base href="${escapeHtml(SITE_URL)}/" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
-  <style>
-    :root { color-scheme: light; }
-    body { box-sizing: border-box; max-width: 54rem; margin: 0 auto; padding: 2.5rem 1.5rem 5rem;
-      color: #23323d; background: #fff; font: 1.08rem/1.7 Georgia, "Times New Roman", serif; }
-    h1, h2, h3, h4, h5, h6 { line-height: 1.3; overflow-wrap: anywhere; }
-    h1 { font-size: 2.3rem; margin: 0 0 0.3rem; }
-    .note-date { margin: 0 0 2.2rem; color: #64727c; font: 0.9rem/1.5 system-ui, sans-serif; }
-    .note-body { overflow-wrap: anywhere; }
-    .note-body img, .note-body video, .note-body svg { max-width: 100%; height: auto; }
-    .note-body pre { overflow-x: auto; padding: 1rem; background: #f2f6f7; }
-    .note-body code { overflow-wrap: anywhere; }
-    .note-body blockquote { border-left: 3px solid #0b7f98; margin-left: 0; padding-left: 1rem; }
-    .note-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
-    .note-body th, .note-body td { border: 1px solid #cdd8de; padding: 0.4rem 0.65rem; }
-    a { color: #087c98; }
-    @media (max-width: 600px) { body { padding: 1.5rem 1rem 3rem; } h1 { font-size: 1.8rem; } }
-${safeStyleText(rendered.compilerCss)}
-${safeStyleText(note.customCss || '')}
-  </style>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-</head>
-<body>
-  <header>
-    <h1>${escapeHtml(note.title)}</h1>
-    <p class="note-date"><time datetime="${escapeHtml(note.date)}">${escapeHtml(displayDate(note.date))}</time></p>
-  </header>
-  <article id="note-content" class="note-body">${sanitiseRenderedHtml(rendered.html)}</article>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      if (window.renderMathInElement) {
-        window.renderMathInElement(document.getElementById('note-content'), ${mathOptions});
-      }
-    });
-  </script>
-</body>
-</html>
-`;
-}
-
-function sendNoteDownload(res, note, format, privateNote = false) {
-  const extension = format === 'wmd' ? 'wmd' : 'html';
-  const content = format === 'wmd' ? String(note.body || '') : renderNoteDownloadHtml(note);
-  const filename = `${slugify(note.slug || note.title)}.${extension}`;
-
-  return sendText(res, 200, content,
-    format === 'wmd' ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8', {
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': privateNote ? 'no-store' : 'no-cache',
-      'X-Robots-Tag': 'noindex, nofollow',
-      'Content-Language': 'en-AU',
-    });
 }
 
 function renderSitemap(notes) {
@@ -849,6 +777,7 @@ const comments = createComments({
   sendJson,
   sendNoContent,
   requireAuth,
+  getSession,
   sameOrigin,
   clientIp,
   readJsonBody,
@@ -877,24 +806,6 @@ async function handle(req, res) {
   }
 
   if (['GET', 'HEAD'].includes(req.method)) {
-    const download = pathname.match(/^\/notes\/([^/]+)\.(wmd|html)$/);
-    if (download) {
-      let slug;
-      try {
-        slug = decodeURIComponent(download[1]);
-      } catch {
-        return sendText(res, 404, 'Note not found.', 'text/plain; charset=utf-8');
-      }
-      const note = readStore().notes.find(item => item.status === 'published' && item.slug === slug);
-      if (!note) {
-        return sendText(res, 404, 'Note not found.', 'text/plain; charset=utf-8', {
-          'Cache-Control': 'no-cache',
-          'X-Robots-Tag': 'noindex',
-        });
-      }
-      return sendNoteDownload(res, note, download[2]);
-    }
-
     const slug = routeParam(pathname, '/notes/');
     if (slug) {
       const store = readStore();
@@ -1008,24 +919,6 @@ async function handle(req, res) {
 
     const rendered = renderWikiMd(body);
     return sendJson(res, 200, { rendered }, { 'Cache-Control': 'no-store' });
-  }
-
-  if (req.method === 'POST' && pathname === '/api/admin/export') {
-    if (!requireAuth(req, res)) return;
-    const input = await readJsonBody(req);
-    const downloadFormat = String(input.downloadFormat || '');
-    if (!['wmd', 'html'].includes(downloadFormat)) {
-      return sendJson(res, 400, { error: 'Choose WMD or HTML.' }, { 'Cache-Control': 'no-store' });
-    }
-
-    // Export the editor's current contents, including unsaved edits, without
-    // changing the saved note or making an unpublished draft public.
-    const note = normaliseNoteInput({
-      ...input,
-      title: input.title || 'Untitled note',
-      format: 'wikimd',
-    }, null, { notes: [] });
-    return sendNoteDownload(res, note, downloadFormat, true);
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/notes') {
