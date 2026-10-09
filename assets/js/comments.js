@@ -48,7 +48,11 @@
   async function api(path, method = 'GET', input) {
     const response = await fetch(path, {
       method, credentials: 'same-origin',
-      headers: { Accept: 'application/json', ...(input !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      headers: {
+        Accept: 'application/json',
+        ...(input !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(window.NotesTabAuth?.headers() || {}),
+      },
       ...(input !== undefined ? { body: JSON.stringify(input) } : {}),
     });
     const data = await response.json().catch(() => ({}));
