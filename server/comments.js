@@ -11,6 +11,7 @@ const MAX_PER_IP = 5;
 const MAX_GLOBAL = 60;
 const attempts = new Map();
 const allAttempts = [];
+const previews = new Map();
 const MAX_NAME = 60;
 const MAX_COMMENT = 4000;
 
@@ -268,6 +269,23 @@ function createComments(options) {
       return true;
     }
 
+    if (req.method === 'POST' && pathname === '/api/comments/preview') {
+      if (!req.headers.origin || !options.sameOrigin(req)) throw commentError('Origin rejected.', 403);
+      const ip = crypto.createHash('sha256').update(options.clientIp(req)).digest('hex');
+      const now = Date.now();
+      for (const [key, times] of previews) {
+        const recent = times.filter(t => t > now - 60000);
+        if (recent.length) previews.set(key, recent); else previews.delete(key);
+      }
+      const times = previews.get(ip) || [];
+      if (times.length >= 20 || previews.size > 2000) throw commentError('Too many previews.', 429);
+      times.push(now);
+      previews.set(ip, times);
+      const input = await options.readJsonBody(req);
+      json(200, { html: renderComment(input.body) });
+      return true;
+    }
+
     const publicMatch = pathname.match(/^\/api\/comments\/([^/]+)$/);
     if (publicMatch && (req.method === 'GET' || req.method === 'POST')) {
       let slug;
@@ -309,7 +327,6 @@ function createComments(options) {
         author: false, status: 'pending', createdAt: new Date().toISOString(),
       };
       // Reload after network verification so writes from other requests are not lost.
-      read().comments; // Ensure store exists.
       const fresh = read();
       fresh.comments.push(comment);
       write(fresh);
