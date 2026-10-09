@@ -135,7 +135,7 @@ The Notes backend uses WikiMD as an npm dependency.
        systemctl status remy-notes.service
        curl http://127.0.0.1:8790/api/notes
 
-The API listens only on `127.0.0.1`; nginx proxies `/api/` to it. The admin session cookie is HttpOnly, SameSite=Strict and Secure by default. Login attempts are rate-limited in memory.
+The API listens only on `127.0.0.1`; nginx proxies `/api/` to it. The admin session uses a browser-session HttpOnly, SameSite=Strict and Secure cookie plus a separate random proof stored only in the current tab's sessionStorage. Both are required for admin APIs and verified author comments; either credential alone is insufficient. The proof persists across navigation on the same origin in that tab (including returning to Notes), but is normally cleared when the tab closes. Closing the browser tab cannot reliably notify the server, and tab duplication or browser session restoration may sometimes retain tab storage. The server also expires sessions after two hours of inactivity and clears them when logging out or restarting the service. Open admin and the public notes using the same hostname (e.g. do not mix localhost with 127.0.0.1). Login attempts are rate-limited in memory.
 
 For local HTTP development, set `NOTES_SECURE_COOKIE=0` so the browser accepts the session cookie without HTTPS.
 
@@ -187,10 +187,11 @@ filters. You can approve, hide, edit or delete comments, and reply directly to
 any published comment. Hiding removes it from the public note but preserves it
 for later approval; deletion is permanent and removes its replies too.
 
-To **post as Remy Ellis**, sign in through the Notes admin page, then open a
-published note in another tab on the **same origin**. The public Write a comment
-and Reply controls then post immediately as the verified author without
-Turnstile or manual approval. Other visitors must use Turnstile and always need
+To **post as Remy Ellis**, sign in through the Notes admin page, then
+navigate to a published note in the **same browser tab**, on the same origin.
+The public Write a comment and Reply controls then post immediately as the
+verified author without Turnstile or manual approval. An unrelated new tab
+requires its own admin sign-in because the login proof is tab-scoped. Other visitors must use Turnstile and always need
 approval. Your replies have the Signature.png avatar and author badge. Merely
 typing your name never grants author privileges.
 
