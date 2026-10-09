@@ -20,6 +20,7 @@ jobs:
         run: |
           node --check server/comments.js
           node --check server/comments.test.js
+          node --check assets/js/comment-editor.js
           node --check assets/js/comments.js
           node --check assets/js/comments-admin.js
           node --check server/notes-server.js
