@@ -275,7 +275,7 @@ function createComments(options) {
       'X-Robots-Tag': 'noindex, nofollow',
     });
     if (req.method === 'GET' && pathname === '/api/comments/config') {
-      json(200, { enabled, siteKey: enabled ? siteKey : '' });
+      json(200, { enabled, siteKey: enabled ? siteKey : '', owner: Boolean(options.getSession(req)) });
       return true;
     }
 
@@ -311,14 +311,15 @@ function createComments(options) {
       }
       // Require an actual browser Origin for anonymous writes, not just an absent/matching Origin.
       if (!req.headers.origin || !options.sameOrigin(req)) throw commentError('Origin rejected.', 403);
-      rateLimit(options.clientIp(req));
+      const owner = Boolean(options.getSession(req));
+      if (!owner) rateLimit(options.clientIp(req));
       const input = await options.readJsonBody(req);
-      if (input.website) { json(202, { pending: true }); return true; } // honeypot
-      const name = typeof input.name === 'string' ? input.name.trim() : '';
-      if (name.length < 2 || name.length > MAX_NAME || /[\u0000-\u001f\u007f<>]/.test(name)) {
+      if (!owner && input.website) { json(202, { pending: true }); return true; } // honeypot
+      const name = owner ? 'Remy Ellis' : (typeof input.name === 'string' ? input.name.trim() : '');
+      if (!owner && (name.length < 2 || name.length > MAX_NAME || /[\u0000-\u001f\u007f<>]/.test(name))) {
         throw commentError('Please provide a name (2–60 characters).');
       }
-      if (/\bremy\b|\badmin\b|\bauthor\b|r[\W_]*h[\W_]*ellis/i.test(name)) {
+      if (!owner && /\bremy\b|\badmin\b|\bauthor\b|r[\W_]*h[\W_]*ellis/i.test(name)) {
         throw commentError('That name is reserved for the site author.');
       }
       const body = checkComment(input.body);
@@ -332,17 +333,20 @@ function createComments(options) {
         if (!parent) throw commentError('The comment being replied to is unavailable.', 404);
         parentId = parent.parentId || parent.id; // one level of nesting
       }
-      await verifyTurnstile(input.turnstileToken);
+      if (!owner) await verifyTurnstile(input.turnstileToken);
       const comment = {
         id: crypto.randomUUID(), noteId: note.id, parentId, name, body,
-        author: false, status: 'pending', createdAt: new Date().toISOString(),
+        author: owner, status: owner ? 'approved' : 'pending', createdAt: new Date().toISOString(),
       };
       // Reload after network verification so writes from other requests are not lost.
       const fresh = read();
       fresh.comments.push(comment);
       write(fresh);
-      notify(note, comment);
-      json(201, { pending: true, message: 'Thanks – your comment is awaiting approval.' });
+      if (!owner) notify(note, comment);
+      json(201, {
+        pending: !owner,
+        message: owner ? 'Your author comment is published.' : 'Thanks – your comment is awaiting approval.',
+      });
       return true;
     }
 
@@ -357,10 +361,18 @@ function createComments(options) {
       json(200, { comments, pendingCount: comments.filter(c => c.status === 'pending').length });
       return true;
     }
-    const action = pathname.match(/^\/api\/admin\/comments\/([a-f0-9-]+)\/(approve|reject|reply)$/);
+    const action = pathname.match(/^\/api\/admin\/comments\/([a-f0-9-]+)\/(approve|reject|reply|edit)$/);
     if (action && req.method === 'POST') {
       const comment = data.comments.find(c => c.id === action[1]);
       if (!comment) throw commentError('Comment not found.', 404);
+      if (action[2] === 'edit') {
+        const input = await options.readJsonBody(req);
+        comment.body = checkComment(input.body);
+        comment.editedAt = new Date().toISOString();
+        write(data);
+        json(200, { updated: true });
+        return true;
+      }
       if (action[2] === 'reply') {
         if (comment.status !== 'approved') throw commentError('Approve the original comment before replying.');
         const input = await options.readJsonBody(req);
