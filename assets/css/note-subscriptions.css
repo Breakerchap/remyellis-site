@@ -1,8 +1,14 @@
+/* The subscribe form is the final item on both Notes page layouts.
+   Avoid the generic section's 7rem bottom gutter. */
+.notes-page .notes-section > .notes-inner {
+  padding-bottom: 1.5rem !important;
+}
+
 /* Purposefully compact; matches Notes typography without inheriting dark-template button styles. */
 .notes-page .notes-subscribe {
   max-width: 52rem;
-  margin: 1.65rem 0 2rem;
-  padding: 1.2rem 1.35rem;
+  margin: 1.65rem 0 0;
+  padding: 1.2rem 1.35rem 1rem;
   border: 1px solid #d8e7e9;
   border-radius: 8px;
   background: #f9fdfd;
@@ -20,6 +26,8 @@
   color: #547484 !important;
 }
 .notes-page .notes-subscribe-form {
+  /* The template's global form rule adds 2em below every form. */
+  margin-bottom: 0;
   display: flex;
   flex-wrap: wrap;
   gap: .5rem;
