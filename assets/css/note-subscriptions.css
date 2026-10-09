@@ -1,0 +1,76 @@
+/* Purposefully compact; matches Notes typography without inheriting dark-template button styles. */
+.notes-page .notes-subscribe {
+  max-width: 52rem;
+  margin: 1.65rem 0 2rem;
+  padding: 1.2rem 1.35rem;
+  border: 1px solid #d8e7e9;
+  border-radius: 8px;
+  background: #f9fdfd;
+  color: #2d5061;
+}
+.notes-page .notes-subscribe h2 {
+  font: 650 1.15rem/1.35 system-ui, sans-serif !important;
+  color: #183e52 !important;
+  margin: 0 0 .38rem !important;
+  letter-spacing: 0;
+}
+.notes-page .notes-subscribe > p {
+  font: 400 .88rem/1.55 system-ui, sans-serif !important;
+  margin: 0 0 .8rem !important;
+  color: #547484 !important;
+}
+.notes-page .notes-subscribe-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: stretch;
+}
+.notes-page .notes-subscribe-form input[type="email"] {
+  flex: 1 1 14rem;
+  min-width: 0;
+  max-width: 26rem;
+  height: 2.55rem !important;
+  border: 1px solid #bbd5dc !important;
+  border-radius: 5px !important;
+  box-shadow: none !important;
+  background: #fff !important;
+  color: #193c4b !important;
+  padding: .55rem .75rem !important;
+  font: 400 .9rem/1.45 system-ui, sans-serif !important;
+}
+.notes-page .notes-subscribe-form button {
+  flex: 0 0 auto;
+  min-width: 0;
+  height: 2.55rem !important;
+  padding: .5rem .95rem !important;
+  border-radius: 5px !important;
+  background: #0c8296 !important;
+  color: #fff !important;
+  border: 1px solid #0c8296 !important;
+  font: 650 .83rem/1.45 system-ui, sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+.notes-page .notes-subscribe-form button:hover { background: #07677c !important; }
+.notes-page .notes-subscribe-form button:disabled { opacity: .6; cursor: wait; }
+.notes-page .notes-subscribe-form .notes-subscribe-trap {
+  position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;
+}
+.notes-page .notes-subscribe > .notes-subscribe-small {
+  margin: .62rem 0 0 !important;
+  font: 400 .75rem/1.45 system-ui, sans-serif !important;
+  color: #738791 !important;
+}
+.notes-page .notes-subscribe-status {
+  margin: .55rem 0 0 !important;
+  font: 500 .82rem/1.5 system-ui, sans-serif !important;
+  color: #27664d !important;
+}
+.notes-page .notes-subscribe-status.is-error { color: #ad3636 !important; }
+@media (max-width: 500px) {
+  .notes-page .notes-subscribe { padding: 1rem; }
+  .notes-page .notes-subscribe-form button { width: 100%; }
+  .notes-page .notes-subscribe-form input[type="email"] { max-width: none; }
+}
