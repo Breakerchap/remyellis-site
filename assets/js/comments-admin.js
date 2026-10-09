@@ -163,5 +163,6 @@
     panel.hidden = true;
     badge.hidden = true;
   });
-  setInterval(() => { if (loggedIn && !document.hidden) reload(); }, 60000);
+  // Don't replace an in-progress moderation reply while its composer is open.
+  setInterval(() => { if (loggedIn && !document.hidden && panel.hidden) reload(); }, 60000);
 })();
