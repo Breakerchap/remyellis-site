@@ -40,6 +40,7 @@ test('mod queue, public visibility, approval, verified replies, rejection and de
   global.fetch = async () => ({ ok: true, json: async () => ({ success: true, hostname: 'test.cloudflare.com' }) });
   try {
     let response;
+    let authenticated = false;
     const comments = createComments({
       notesDataPath: path.join(dir, 'notes.json'),
       siteUrl: 'https://remyellis.au',
@@ -47,6 +48,7 @@ test('mod queue, public visibility, approval, verified replies, rejection and de
       readJsonBody: async req => req.input,
       clientIp: () => 'test-ip',
       requireAuth: () => true,
+      getSession: () => authenticated ? { token: "admin-test" } : null,
       sameOrigin: () => true,
       sendJson: (_res, code, data) => { response = { code, data }; },
       sendNoContent: () => { response = { code: 204 }; },
@@ -60,6 +62,7 @@ test('mod queue, public visibility, approval, verified replies, rejection and de
       }, {}, url);
       return response;
     }
+    assert.equal((await call('/api/comments/config', 'GET')).data.owner, false);
     const submitted = await call('/api/comments/sample-note', 'POST', {
       name: 'Alex', body: '*Good* point!', turnstileToken: 'dummy', website: '',
     });
@@ -82,12 +85,31 @@ test('mod queue, public visibility, approval, verified replies, rejection and de
     publicList = await call('/api/comments/sample-note', 'GET');
     assert.equal(publicList.data.comments.length, 2);
 
+    await call('/api/admin/comments/' + commentId + '/edit', 'POST', { body: '*Edited* text' });
+    publicList = await call('/api/comments/sample-note', 'GET');
+    assert.match(publicList.data.comments[0].html, /<strong>Edited<\/strong>/);
+
     await call('/api/admin/comments/' + commentId + '/reject', 'POST');
     publicList = await call('/api/comments/sample-note', 'GET');
     assert.equal(publicList.data.comments.length, 0); // No orphaned author replies.
+    await call('/api/admin/comments/' + commentId + '/approve', 'POST');
+    assert.equal((await call('/api/comments/sample-note', 'GET')).data.comments.length, 2);
+
+    authenticated = true;
+    assert.equal((await call('/api/comments/config', 'GET')).data.owner, true);
+    const own = await call('/api/comments/sample-note', 'POST', {
+      body: 'Site author announcement', parentId: null,
+    });
+    assert.equal(own.code, 201);
+    assert.equal(own.data.pending, false);
+    publicList = await call('/api/comments/sample-note', 'GET');
+    assert.equal(publicList.data.comments.length, 3);
+    assert.equal(publicList.data.comments[2].author, true);
+    assert.equal(publicList.data.comments[2].name, 'Remy Ellis');
+
     await call('/api/admin/comments/' + commentId, 'DELETE');
     publicList = await call('/api/comments/sample-note', 'GET');
-    assert.equal(publicList.data.comments.length, 0);
+    assert.equal(publicList.data.comments.length, 1); // Deleting the parent also deletes the reply.
   } finally {
     global.fetch = oldFetch;
     for (const [key, value] of Object.entries(oldEnv)) {
