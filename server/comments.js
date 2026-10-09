@@ -139,7 +139,12 @@ function createComments(options) {
     path.join(path.dirname(options.notesDataPath), 'comments.json');
   const siteKey = process.env.COMMENTS_TURNSTILE_SITE_KEY || '';
   const secret = process.env.COMMENTS_TURNSTILE_SECRET || '';
-  const enabled = Boolean(siteKey && secret);
+  const testCredentials = siteKey === '1x00000000000000000000AA' &&
+    secret === '1x0000000000000000000000000000000AA';
+  // Public test credentials are intentionally unsafe on the production website.
+  const development = process.env.NOTES_SERVE_STATIC === '1' &&
+    ['127.0.0.1', 'localhost', '::1'].includes(process.env.NOTES_HOST || '127.0.0.1');
+  const enabled = Boolean(siteKey && secret && (!testCredentials || development));
   const siteUrl = new URL(options.siteUrl);
   const allowedHosts = new Set([siteUrl.hostname, ...String(process.env.COMMENTS_ALLOWED_HOSTNAMES || '')
     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)]);
@@ -219,8 +224,7 @@ function createComments(options) {
     if (!response.ok) throw commentError('Spam check temporarily unavailable. Please try again.', 503);
     const result = await response.json();
     // Hostname check is relaxed only for Cloudflare's published test keys.
-    const isTestKey = siteKey === '1x00000000000000000000AA' && secret === '1x0000000000000000000000000000000AA';
-    if (!result.success || (!isTestKey && !allowedHosts.has(String(result.hostname || '').toLowerCase()))) {
+    if (!result.success || (!testCredentials && !allowedHosts.has(String(result.hostname || '').toLowerCase()))) {
       throw commentError('Spam check failed or expired. Please try again.');
     }
   }
