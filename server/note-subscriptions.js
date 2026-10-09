@@ -13,7 +13,8 @@ const HOUR_MS = 60 * 60 * 1000;
 
 function validEmail(value) {
   return typeof value === 'string' && value.length <= 254 &&
-    /^[^\s@<>"\r\n]{1,64}@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value);
+    /^[a-z0-9._%+-]{1,64}@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(value) &&
+    !value.includes('..');
 }
 function randomToken() { return crypto.randomBytes(32).toString('hex'); }
 function escapeHtml(value) {
@@ -211,7 +212,7 @@ function createNoteSubscriptions({
         let message;
         if (job.kind === 'confirm') {
           if (!subscriber.confirmToken || subscriber.confirmExpires <= now()) continue;
-          const link = new URL('/notes-subscription/confirm?token=' + subscriber.confirmToken, site).href;
+          const link = new URL('/api/notes-subscriptions/confirm?token=' + subscriber.confirmToken, site).href;
           message = composeEmail({
             from, to: subscriber.email, subject: 'Confirm your Notes subscription',
             text: 'You (or someone using this email address) requested updates when I publish new Notes.\n\n' +
@@ -227,7 +228,7 @@ function createNoteSubscriptions({
           }
           const url = new URL('/notes/' + encodeURIComponent(note.slug), site).href;
           const unsubscribeUrl = new URL('/api/notes-subscriptions/unsubscribe?token=' + subscriber.unsubscribeToken, site).href;
-          const manageUrl = new URL('/notes-subscription/unsubscribe?token=' + subscriber.unsubscribeToken, site).href;
+          const manageUrl = new URL('/api/notes-subscriptions/unsubscribe?token=' + subscriber.unsubscribeToken, site).href;
           message = composeEmail({
             from, to: subscriber.email,
             subject: 'New Notes: ' + note.title,
@@ -269,7 +270,7 @@ function createNoteSubscriptions({
     finally { flushing = false; }
   }
 
-  function schedule() { if (enabled) setImmediate(() => { void flush(); }); }
+  function schedule() { if (enabled && startTimer) setImmediate(() => { void flush(); }); }
 
   function page(res, status, html) {
     res.writeHead(status, {
@@ -297,8 +298,8 @@ function createNoteSubscriptions({
     }
 
     const kinds = {
-      '/notes-subscription/confirm': 'confirm',
-      '/notes-subscription/unsubscribe': 'unsubscribe',
+      '/api/notes-subscriptions/confirm': 'confirm',
+      '/api/notes-subscriptions/unsubscribe': 'unsubscribe',
     };
     if (pathname in kinds && req.method === 'GET') {
       const kind = kinds[pathname];
