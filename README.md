@@ -240,23 +240,74 @@ limit, and mandatory moderation. Names are 2–60 characters, comments are
 3–4000 characters. The submission limit is in-memory and resets when the
 service restarts; moderation remains mandatory regardless.
 
-### Notifications
+### Email notifications for comments
 
-The admin Comments button has a live pending count, refreshed when you log in
-and approximately once a minute while the admin page is open. This works
-without any extra services.
+Each visitor comment and reply is saved as pending moderation, and triggers one
+email to the site owner (by default in the example: remy@remyellis.au). The
+email contains the note title, visitor name, comment text, and direct links
+to the note and private moderation inbox. The visitor does not supply an email.
+Verified author comments do not send notifications. Notifications are queued
+in the existing private comments data file and retried if sending fails
+(approximately once per minute, exponential back-off up to one hour). New
+visitor comments are never held up by an unavailable mail server. Mail delivery
+is best-effort: if the process dies after delivery but before recording it,
+one notification may be sent a second time.
 
-Optional **email notifications to the site owner only** can use a configured
-local `sendmail`-compatible program (such as msmtp in sendmail mode).
-It is not enabled automatically and does not collect visitor email addresses.
-For instance:
+The **Comments** area in Notes Admin displays whether email is configured,
+how many notifications are waiting, and a **Send test email** button when
+configured. Only an authenticated admin may use the test control; it is limited
+to one attempt per minute.
+
+The service supports any locally installed `sendmail`-compatible transport.
+For SMTP, `msmtp` is recommended because it is lightweight and doesn't
+require a local mail server. On the Pi:
+
+    sudo apt-get update
+    sudo apt-get install msmtp
+    sudo install -d -m 700 -o remy -g remy /var/lib/remy-notes
+    sudo install -m 600 -o remy -g remy /dev/null /var/lib/remy-notes/msmtp.conf
+    sudo -u remy nano /var/lib/remy-notes/msmtp.conf
+
+Configure that private file using the outgoing SMTP settings from your mail
+provider (not the Cloudflare Email Routing MX records):
+
+    defaults
+    auth on
+    tls on
+    tls_starttls on
+    host smtp.YOUR-MAIL-PROVIDER.example
+    port 587
+    user YOUR_SMTP_USERNAME
+    password YOUR_SMTP_PASSWORD_OR_APP_PASSWORD
+    from YOUR_VERIFIED_SENDER_ADDRESS
+    account default
+
+Use your mail provider's real SMTP hostname, username, password and
+authorised From address. Keep the config file at mode 0600, owned by the
+account running the Notes service. If your mail provider instead requires
+implicit TLS on port 465, use `tls_starttls off` with `tls on`.
+
+Add the following lines to the private `/etc/remy-notes.env`:
 
     COMMENTS_NOTIFY_EMAIL=remy@remyellis.au
+    COMMENTS_NOTIFY_FROM=YOUR_VERIFIED_SENDER_ADDRESS
     COMMENTS_SENDMAIL_PATH=/usr/bin/msmtp
+    COMMENTS_MSMTP_CONFIG=/var/lib/remy-notes/msmtp.conf
 
-Configure the mail transport separately and test it on the Pi before relying
-on email; an unavailable mail transport does not prevent submission or
-moderation. No email is sent to visitors.
+Check the actual msmtp path with `command -v msmtp` and update it if different.
+The mailer invokes msmtp with `--file=...` and `-t -i`, using no shell.
+Do not place your SMTP password in the repository or Notes HTML.
+
+After deploying this branch and setting up the mail account:
+
+    sudo systemctl restart remy-notes.service
+    sudo journalctl -u remy-notes.service -n 40 --no-pager
+
+Open Notes Admin > Comments and click **Send test email**. Confirm it arrives
+in the destination inbox. If sending fails, the admin interface displays an
+error and the journal contains a diagnostic message. Until configured, email
+is off and visitors can still submit comments for your approval. The small
+admin pending-comment count works without email.
 
 ### Local development and tests
 

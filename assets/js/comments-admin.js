@@ -6,6 +6,8 @@
   if (!toggle || !panel) return;
   const list = panel.querySelector('#admin-comments-list');
   const message = panel.querySelector('#admin-comments-message');
+  const mailStatus = panel.querySelector('#admin-comments-email-status');
+  const testEmailButton = panel.querySelector('#admin-comments-test-email');
   const filterButtons = [...panel.querySelectorAll('[data-filter]')];
   let loggedIn = false, items = [], activeFilter = 'all', busy = false;
 
@@ -41,6 +43,33 @@
     if (!res.ok) throw new Error(result.error || 'Request failed (' + res.status + ').');
     return result;
   }
+
+  async function refreshEmailStatus() {
+    try {
+      const { mail } = await api('/api/admin/comments/mail-status');
+      mailStatus.textContent = mail.configured
+        ? 'Email notifications on – ' + mail.destination +
+          (mail.queued ? ' (' + mail.queued + ' queued)' : '')
+        : 'Email notifications off – configure the mail transport on the Pi.';
+      testEmailButton.hidden = !mail.configured;
+    } catch {
+      mailStatus.textContent = 'Could not check email notification status.';
+      testEmailButton.hidden = true;
+    }
+  }
+
+  testEmailButton.addEventListener('click', async () => {
+    testEmailButton.disabled = true;
+    notice('Sending test email…');
+    try {
+      const response = await api('/api/admin/comments/test-email', 'POST');
+      notice(response.message || 'Test email sent.');
+    } catch (error) {
+      notice(error.message, true);
+    } finally {
+      testEmailButton.disabled = false;
+    }
+  });
 
   function setFilter(value) {
     activeFilter = value;
@@ -222,6 +251,7 @@
 
   function open() {
     panel.hidden = false;
+    void refreshEmailStatus();
     document.body.classList.add('comments-admin-open');
     setFilter('all');
     reload();
@@ -244,6 +274,7 @@
     loggedIn = true;
     toggle.hidden = false;
     reload();
+    void refreshEmailStatus();
     if (location.hash === '#comments') open();
   });
   document.addEventListener('notes-admin:signed-out', () => {
