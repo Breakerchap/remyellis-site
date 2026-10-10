@@ -470,7 +470,7 @@ ${safeStyleText(note.customCss || '')}
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <script defer src="/assets/js/note-page.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.js"></script>
-  <script defer src="/assets/js/wikimd-editor-mode.js"></script>
+  <script defer src="/assets/js/wikimd-editor-mode.js?v=20261010-tabstops1"></script>
   <script defer src="/assets/js/notes-auth.js?v=20261009-tab1"></script>
   <script defer src="/assets/js/comment-editor.js?v=20261009-3"></script>
   <script defer src="/assets/js/comments.js?v=20261009-3"></script>

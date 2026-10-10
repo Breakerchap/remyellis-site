@@ -4,7 +4,7 @@
   if (!window.CodeMirror || window.CodeMirror.modes.wikimd) return;
 
   window.CodeMirror.defineMode('wikimd', () => ({
-    startState: () => ({ fencedCode: false, config: false, proseBlock: null }),
+    startState: () => ({ fencedCode: false, config: false, proseBlock: null, tabStops: false }),
 
     token(stream, state) {
       if (state.fencedCode) {
@@ -43,6 +43,16 @@
           return 'wmd-directive';
         }
 
+        if (stream.match(/^\s*@tabstops(?:\s+.*)?$/)) {
+          state.tabStops = true;
+          return 'wmd-directive';
+        }
+
+        if (stream.match(/^\s*@endtabstops\s*$/)) {
+          state.tabStops = false;
+          return 'wmd-directive';
+        }
+
         if (state.config) {
           stream.skipToEnd();
           return 'wmd-variable';
@@ -72,6 +82,7 @@
       if (stream.match(/^\[[^\]\n]+\]\([^\)\n]+\)/)) return 'wmd-link';
       if (stream.match(/^\{\{[A-Za-z][\w-]*\}\}/)) return 'wmd-variable';
       if (stream.match(/^\`[^\`\n]+\`/)) return 'wmd-code';
+      if (state.tabStops && previous !== '\\' && stream.match(/^\\tab\b/)) return 'wmd-directive';
 
       if (stream.match(/^===[^=\n]+===/)) return 'wmd-highlight-red';
       if (stream.match(/^==[^=\n]+==/)) return 'wmd-highlight-orange';
